@@ -107,13 +107,61 @@ nav {
 }
 
 .chrbrowser {
+  background:white;
 	padding: 5px;
+}
+.chrbox {
 }
 
 #about a:link, #about a:visited {
 	color: white;
 	font-weight: bold;
 }
+
+/* context menu */
+
+.context-menu {
+  display: none;
+  position: absolute;
+  z-index: 10;
+  padding: 12px 0;
+  width: auto;
+  background-color: #fff;
+  border: solid 1px #dfdfdf;
+  box-shadow: 1px 1px 2px #cfcfcf;
+}
+
+.context-menu--active {
+  display: block;
+}
+
+.context-menu__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.context-menu__item {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.context-menu__item:last-child {
+  margin-bottom: 0;
+}
+
+.context-menu__link {
+  display: block;
+  padding: 4px 12px;
+  color: #0066aa;
+  text-decoration: none;
+}
+
+.context-menu__link:hover {
+  color: #fff;
+  background-color: #0066aa;
+}
+
     </style>
   </head>
   <body>
@@ -214,14 +262,14 @@ to <input id="maxCm" type="number" value="" onChange="updateCm();" onInput="upda
 
 <br/><br/>
 <label for="chrsize">Chromosome Size</label>
-<select id="chrsize" onchange="updateDisplay();">
+<select id="chrsize" onchange="updatePosn();">
   <option value="screenwidth" selected="selected">screen width</option>
   <option value="proportional">proportional</option>
 </select>
 
 <br/><br/>
 <label for="viewtype">View Type</label>
-<select id="viewtype" onchange="updateDisplay();">
+<select id="viewtype" onchange="updateViewType();">
   <option value="compact" selected="selected">Compact</option>
   <option value="compactreverse">Compact (reverse)</option>
   <option value="segment">By Segment</option>
@@ -232,24 +280,41 @@ to <input id="maxCm" type="number" value="" onChange="updateCm();" onInput="upda
 </select>
 <br/><br/>
 <label for="segmentHeight">Segment Height</label>
-<input id="segmentHeight" type="number" value="10" onChange="updateDisplay();" onInput="updateAll();">
+<input id="segmentHeight" type="number" value="20" onChange="updatePosn();">
 
 <br/><br/>
 <label for="fromkit">Active Kit</label>
 <select id="fromkit" onchange="updateAll();">
 </select>
+
+<br/><br/>
+<label for="hideuncoloured">Show Segments</label>
+<select id="hideuncoloured" onchange="updateHidden();">
+  <option value="all" selected="selected">All</option>
+  <option value="coloured">Solid Colour</option>
+</select>
+
 </div>
 <div class="inputs" id="about">
 Copyright (c) 2018 yulvil <a href="https://github.com/yulvil/chromosome-browser">Help</a> and <a href="https://github.com/yulvil/chromosome-browser">Source Code</a>
 </div>
 </div>
+<div class="tooltip" id="tooltip" style="opacity=0;"></div>
+
 </nav>
 </form>
 
-<div class="chrbrowser">
-<svg id="topsvg" width="100%"/>
+<div id="divchrbrowser" style="position:relative;">
+
 </div>
 
+  <nav id="context-menu" class="context-menu">
+    <button onclick="menuClick(event, 0)"> Highlight all segments which intersect this kit</button><br/>
+    <button onclick="menuClick(event, 1)"> unHighlight all segments which intersect this kit</button><br/>
+    <button onclick="menuClick(event, 2)"> No Action</button><br/>
+  </nav>
+
+  
     <script>
 "use strict;";
 
@@ -296,6 +361,127 @@ function sortBySegment(data, fcmp) {
 		"numRows": data.length
 	};
 }
+
+/**
+ * Get's exact position of event.
+ * 
+ * @param {Object} e The event passed in
+ * @return {Object} Returns the x and y position
+ */
+function getPosition(e) {
+  var posx = 0;
+  var posy = 0;
+
+  if (!e) var e = window.event;
+  
+  //if (e.pageX || e.pageY) {
+    posx = e.pageX;
+    posy = e.pageY;
+//  } else if (e.clientX || e.clientY) {
+    posx = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+    posy = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+//  }
+
+  return {
+    x: posx,
+    y: posy
+  }
+}
+
+var contextMenuClassName = "context-menu";
+var contextMenuItemClassName = "context-menu__item";
+var contextMenuLinkClassName = "context-menu__link";
+var contextMenuActive = "context-menu--active";
+var menu = document.querySelector("#context-menu");
+var menuItems = menu.querySelectorAll(".context-menu__item");
+var menuState = 0;
+var menuWidth;
+var menuHeight;
+var menuPosition;
+var menuPositionX;
+var menuPositionY;
+var menuSegid;
+
+function contextMenu(e) {
+  console.log('Context', e);
+  taskItemInContext = e.target;
+
+  if ( taskItemInContext ) {
+    e.preventDefault();
+    menuSegid = taskItemInContext.id;
+    toggleMenuOn();
+    positionMenu(e);
+  } else {
+    taskItemInContext = null;
+    toggleMenuOff();
+  }
+}
+
+ /**
+   * Turns the custom context menu on.
+   */
+  function toggleMenuOn() {
+    if ( menuState !== 1 ) {
+      menuState = 1;
+      menu.classList.add( contextMenuActive );
+    }
+  }
+
+  /**
+   * Turns the custom context menu off.
+   */
+  function toggleMenuOff() {
+    if ( menuState !== 0 ) {
+      menuState = 0;
+      menu.classList.remove( contextMenuActive );
+    }
+  }
+
+  /**
+   * Positions the menu properly.
+   * 
+   * @param {Object} e The event
+   */
+  function positionMenu(e) {
+    clickCoords = getPosition(e);
+    clickCoordsX = clickCoords.x;
+    clickCoordsY = clickCoords.y;
+
+    menuWidth = menu.offsetWidth + 4;
+    menuHeight = menu.offsetHeight + 4;
+
+    windowWidth = window.innerWidth;
+    windowHeight = window.innerHeight;
+
+//    if ( (windowWidth - clickCoordsX) < menuWidth ) {
+//      menu.style.left = windowWidth - menuWidth + "px";
+//    } else {
+      menu.style.left = clickCoordsX + "px";
+//    }
+
+//    if ( (windowHeight - clickCoordsY) < menuHeight ) {
+//      menu.style.top = windowHeight - menuHeight + "px";
+//    } else {
+      menu.style.top = clickCoordsY + "px";
+//    }
+  }
+
+function menuClick(ev, item){
+  toggleMenuOff();
+
+  let segid = menuSegid;
+  switch(item){
+    case 0:
+      highlightAllMatching(segid, true);
+      break;
+    case 1:
+      highlightAllMatching(segid, false);
+      break;
+    case 2:
+      break;
+  }
+}
+
 
 function sortByKitSize(data) {
 	var kits = {};
@@ -382,10 +568,6 @@ function compact(data, fcmp) {
 	};
 }
 
-// Define the div for the tooltip
-var div = d3.select("body").append("div")
-	.attr("class", "tooltip")
-	.style("opacity", 0);
 
 // data = {
 //   "kit1": [segments],
@@ -432,6 +614,8 @@ function csvParse(text) {
 		e.cm =  + (d.cm || d.cM || d["CENTIMORGANS"] || d["Centimorgans"] || d["Genetic Distance"] || "0").replace(/,/g, "");
 		e.kitTo = d.kit2 || d.matchname || d.Match || d["MATCHNAME"] || d["Match name"] || d["Match Name"] || d["Display Name"] || "";
 		e.side = getSide(d);
+    
+//    e.highlight = (e.kitTo === 'Berverly Porter');
 
 		if (!kits[e.kitFrom]) {
 			var nameFrom = (d.name1 || d.name || d.NAME || d.Name || "");
@@ -446,11 +630,18 @@ function csvParse(text) {
 			var nameTo = d.name2 || d.Match || d["MATCHNAME"] || d["Match name"] || d["Display Name"] || "";
 			var emailTo = (d.email2 || "");
 			var color = d.color || d.Color || d.Colour || cat20(e.kitTo);
+      var opacity = 0.25;
+      var always = false;
+      if (d.color || d.Color || d.Colour){
+       opacity = 1.0;
+      }
 			kits[e.kitTo] = {
 				"kit": e.kitTo,
 				"name": nameTo,
 				"email": emailTo,
-				"color": color
+				"color": color,
+        "opacity": opacity,
+        "always": always, // always highlighted if a color came from the csv
 			};
 		}
 
@@ -521,43 +712,65 @@ function setOptions() {
 const chrlen = [0, 247199719, 242751149, 199446827, 191263063, 180837866, 170896993, 158821424, 146274826, 140442298, 135374737, 134452384, 132289534, 114127980, 106360585, 100338915, 88822254, 78654742, 76117153, 63806651, 62435965, 46944323, 49528953, 154913754];
 
 function filterData(segments, includekits, excludekits, minCm, maxCm) {
+  let org = filteredData;
 	filteredData = [];
-
+  
 	if (segments.length == 0) {
 		return;
 	}
 
 	var d = segments;
 
-	if (includekits.length > 0) {
-		d = d.filter(e => includekits.includes(e.kitTo));
-	}
+  let filteredsegs = [];
+  
+  for (let i = 0; i < d.length; i++){
+    let e = d[i];
+  
+    // always include segs in the include list, regardless of min/max cm
+    if (includekits.length > 0) {
+      if (includekits.includes(e.kitTo)){
+        filteredsegs.push(e);
+        if (e.segdiv) e.segdiv.style.display = 'none';
+        continue;
+      }
+    }
+    if (e.cm < minCm){
+      if (e.segdiv) e.segdiv.style.display = 'none';
+      continue;
+    }
+    if (e.cm > maxCm){
+      if (e.segdiv) e.segdiv.style.display = 'none';
+      continue;
+    }
 
-	d = d.filter(e => e.cm >= minCm);
-
-	d = d.filter(e => e.cm <= maxCm);
-
-	if (excludekits.length > 0) {
-		d = d.filter(e => !excludekits.includes(e.kitTo));
-	}
+    if (excludekits.length > 0) {
+      if (excludekits.includes(e.kitTo)){
+        if (e.segdiv) e.segdiv.style.display = 'none';
+        continue;
+      }
+    }
+    filteredsegs.push(e);
+    if (e.segdiv) e.segdiv.style.display = 'block';
+  }
 
 	for (var i = 0; i <= 23; i++) {
-	for (var j = 0; j < 3; j++) {
-		var o = {
-			"chr": i,
-			"side": j,
-			"segments": []
-		};
-		filteredData.push(o);
-	}
+    for (var j = 0; j < 3; j++) {
+      var o = {
+        "chr": i,
+        "side": j,
+        "segments": [],
+        "div": (org && org[3*i + j]) ? org[3*i + j].div: null,
+      };
+      filteredData.push(o);
+    }
 	}
 
-	for (var i = 0; i < d.length; i++) {
+	for (var i = 0; i < filteredsegs.length; i++) {
 		// filteredData[d[i].chr] = filteredData[d[i].chr] || {"segments": []};
-		filteredData[3*d[i].chr + d[i].side].segments.push(d[i]);
+		filteredData[3*filteredsegs[i].chr + filteredsegs[i].side].segments.push(filteredsegs[i]);
 	}
 
-	filteredData = filteredData.filter(e => e.segments.length > 0);
+	//filteredData = filteredData.filter(e => e.segments.length > 0);
 }
 
 function sortData(data, viewType) {
@@ -589,37 +802,202 @@ function sortData(data, viewType) {
 	return data;
 }
 
-var width = window.innerWidth || document.width;
 
-function updateChr(e, chrsize) {
-	var chrSvg = d3.select(`#chrg${e.chr}_${e.side}`);
+function getWidth() {
+  return Math.max(
+    document.body.scrollWidth,
+    document.documentElement.scrollWidth,
+    document.body.offsetWidth,
+    document.documentElement.offsetWidth,
+    document.documentElement.clientWidth
+  );
+}
+
+var width = getWidth() * 0.8;
+
+var tooltipDiv = document.getElementById('tooltip');
+
+function mouseover(ev, d) {
+  let name = "";
+  if (kits[d.kitTo].name !== d.kitTo) {
+    name = "<br>name " + kits[d.kitTo].name;
+  }
+  tooltipDiv.style.opacity = 1.0;
+  
+  tooltipDiv.innerHTML = d.start.toLocaleString() + " to " + d.end.toLocaleString() + "<br>kit " + d.kitTo + name + "<br/>This segment " + d.cm.toFixed(1) + " cM";
+  
+  tooltipDiv.style.left = (ev.pageX + 40) + "px";
+  tooltipDiv.style.top = (ev.pageY - 28) + "px";
+  console.log(d.start + " to " + d.end + " kit [" + d.kitTo + "] name " + d.name);
+}
+
+function mouseout() {
+  tooltipDiv.style.opacity = 0;
+
+}
+
+function clickSeg(ev) {
+  if (menuState){
+    toggleMenuOff();
+    return;
+  }
+
+	var fromkit = document.getElementById("fromkit").value;
+	var segments = data[fromkit] || [];
+
+  let id = ev.target.id;
+  let kit;
+  let seg;
+  for (let s = 0; s < segments.length; s++){
+    seg = segments[s];
+    if (seg.id === id){
+      console.log('clicked', seg);
+      kit = seg.kitTo;
+      break;
+    }
+  }
+
+  highlightKit(kit, (seg.segdiv.style.opacity != 1 && !kits[seg.kitTo].always))
+}
+
+function dblClickSeg(ev){
+  highlightAllMatching(ev.target.id, true);
+}
+
+
+function highlightKit(kit, enable){
+	var fromkit = document.getElementById("fromkit").value;
+	var segments = data[fromkit] || [];
+  
+  for (let s = 0; s < segments.length; s++){
+    let seg = segments[s];
+    if (seg.kitTo === kit){
+      if (seg.segdiv){
+        if (!enable){
+          seg.segdiv.style.opacity = 0.5;
+          delete seg.color
+          kits[seg.kitTo].opacity = 0.5;
+        } else {
+          seg.segdiv.style.opacity = 1;
+          seg.color = kits[seg.kitTo].color = seg.segdiv.style.backgroundColor;
+          kits[seg.kitTo].opacity = 1;
+        }
+      }
+    }
+  }
+}
+
+function highlightAllMatching(segid, enable){
+	var fromkit = document.getElementById("fromkit").value;
+	var segments = data[fromkit] || [];
+
+  let id = segid;
+  let kit;
+  for (let s = 0; s < segments.length; s++){
+    let seg = segments[s];
+    if (seg.id === id){
+      console.log('clicked', seg);
+      kit = seg.kitTo;
+      break;
+    }
+  }
+  
+  let kitsegs = {};
+  for (let s = 0; s < segments.length; s++){
+    let seg = segments[s];
+    if (seg.kitTo === kit){
+      kitsegs[seg.chr] = kitsegs[seg.chr] || [];
+      kitsegs[seg.chr].push(seg);
+    }
+  }
+  
+  for (let s = 0; s < segments.length; s++){
+    let seg = segments[s];
+    if (kitsegs[seg.chr]){
+      for (let i = 0; i < kitsegs[seg.chr].length; i++){
+        let ks = kitsegs[seg.chr][i];
+        if ((seg.start < ks.start && seg.end > ks.start) ||
+            (seg.start < ks.end && seg.end > ks.end) ||
+            (seg.start >= ks.start && seg.end <= ks.end)){
+          if (enable || kits[seg.kitTo].always){
+            seg.segdiv.style.opacity = 1;
+            seg.color = kits[seg.kitTo].color = seg.segdiv.style.backgroundColor;
+            kits[seg.kitTo].opacity = 1;
+          } else {
+            seg.segdiv.style.opacity = 0.5;
+            delete seg.color
+            kits[seg.kitTo].opacity = 0.5;
+          }
+        }
+      }
+    }
+  }
+}
+
+function contextSeg(ev){
+	var fromkit = document.getElementById("fromkit").value;
+	var segments = data[fromkit] || [];
+
+  let id = ev.target.id;
+  let kit;
+  for (let s = 0; s < segments.length; s++){
+    let seg = segments[s];
+    if (seg.id === id){
+      console.log('clicked', seg);
+      kit = seg.kitTo;
+      break;
+    }
+  }
+  
+  
+}
+
+
+function addSegments(div, chrom, chrsize) {
+
 	var segmentHeight = +document.getElementById("segmentHeight").value;
 
-	var sc = d3.scaleLinear().domain([0, chrlen[e.chr]]).range([0, chrsize]);
+	var sc = (len)=>{
+    let newlen = (len/chrlen[chrom.chr])*chrsize;
+    return newlen;
+  };
 
-	var rectangles = chrSvg.selectAll(".segment").data(e.segments, function (d) {
-			return d.id
-		});
-
-	rectangles.exit().remove();
-
-	var rectangleAttributesEnter = rectangles.enter().append("rect")
+  for (let s = 0; s < chrom.segments.length; s++){
+    let d = chrom.segments[s];
+    let newdiv = d.segdiv;
+    let isnew = false;
+    if (!newdiv){
+      newdiv = document.createElement('DIV');
+      newdiv.id = d.id;
+      isnew = true;
+    }
+    d.segdiv = newdiv;
+    newdiv.style.width = (sc(d.end) - sc(d.start)) + 'px';
+    newdiv.style.height = segmentHeight + 'px'
+    newdiv.style.top = (1 + d.row * (segmentHeight + 1)) + 'px';
+    newdiv.style.left = sc(d.start) + 'px';
+    newdiv.style.position = 'absolute';
+    newdiv.style.margin = '';
+    newdiv.style.padding = '';
+    newdiv.style.border = '';
+    newdiv.style.backgroundColor = kits[d.kitTo].color;
+    newdiv.style.opacity = kits[d.kitTo].opacity;
+    newdiv.style.overflow = 'hidden';
+    newdiv.style.display = 'block';
+    
+    if (isnew) {
+      newdiv.innerHTML = kits[d.kitTo].name || d.kitTo;
+      
+      newdiv.addEventListener('mouseover', (event) => {mouseover(event, d);});
+      newdiv.addEventListener('mouseout', (event) => {mouseout();});
+      
+      div.append(newdiv);
+    }
+  }
+  
+/*
+  rectangleAttributesEnter.append("rect")
 		.attr("class", "segment")
-		.attr("x", function (d) {
-			return sc(d.start);
-		})
-		.attr("y", function (d, i) {
-			return 1 + d.row * (segmentHeight + 1);
-		})
-		.attr("rx", 4)
-		.attr("ry", 4)
-		.attr("width", function (d) {
-			return sc(d.end) - sc(d.start);
-		})
-		.attr("height", segmentHeight)
-		.style("fill", function (d) {
-			return kits[d.kitTo].color;
-		})
 		.on("mouseover", function (d) {
 			name = "";
 			if (kits[d.kitTo].name !== d.kitTo) {
@@ -629,7 +1007,7 @@ function updateChr(e, chrsize) {
 			.duration(200)
 			.style("opacity", 1.0);
 			div.html(d.start.toLocaleString() + " to " + d.end.toLocaleString() + "<br>kit " + d.kitTo + name + "<br/>This segment " + d.cm.toFixed(1) + " cM")
-			.style("left", (d3.event.pageX) + "px")
+			.style("left", (d3.event.pageX + 40) + "px")
 			.style("top", (d3.event.pageY - 28) + "px");
 			console.log(d.start + " to " + d.end + " kit [" + d.kitTo + "] name " + d.name);
 		})
@@ -638,23 +1016,10 @@ function updateChr(e, chrsize) {
 			.duration(500)
 			.style("opacity", 0);
 		});
-
-	rectangles
-	.transition()
-	.duration(400)
-	.attr("x", function (d) {
-		return sc(d.start);
-	})
-	.attr("y", function (d, i) {
-		return 1 + d.row * (segmentHeight + 1);
-	})
-	.attr("width", function (d) {
-		return sc(d.end) - sc(d.start);
-	})
-	.attr("height", segmentHeight)
-
-	d3.select(`#chrrect${e.chr}_${e.side}`).attr("height", 1 + e.numRows * (segmentHeight + 1))
+*/
 }
+
+
 
 function getChrBoxWidth(chr, chrsize) {
 	if (chrsize === 'proportional') {
@@ -685,69 +1050,161 @@ function updateCm() {
 }
 
 function updateAll() {
-	updateData()
-	updateDisplay()
+	updateData();
+  updateDivDisplay();
 }
 
-function updateDisplay() {
+
+var filteredByChr;
+
+function updateDivDisplay() {
 	var viewType = document.getElementById("viewtype").value;
 	var chrview = +document.getElementById("chrview").value;
 	var segmentHeight = +document.getElementById("segmentHeight").value;
 	var chrsize = document.getElementById("chrsize").value;
+  var hideuncoloured = document.getElementById("hideuncoloured").value;
+  
+	var rootDiv = document.getElementById("divchrbrowser");
 
-	var filteredByChr = filteredData;
+	var fromkit = document.getElementById("fromkit").value;
+	let segments = data[fromkit] || [];
+  
+  let kits = Object.keys(data);
+  for (let k = 0; k < kits.length; k++){
+    let segs = data[kits[k]] || [];
+    // hide all segments which have divs - we may filter them out and they would remain.
+    for (let i = 0; i < segs.length; i++){
+      if (segs[i].segdiv){
+        segs[i].segdiv.style.display = 'none';
+      }
+    }
+  }
+
+  
+	filteredByChr = filteredData;
 	if (chrview != 0 ) {
 		filteredByChr = filteredData.filter(e => e.chr == chrview);
 	}
-	var d = sortData(filteredByChr, viewType);
+  
+  if (hideuncoloured === 'coloured'){
+    for (let i = 0; i < filteredByChr.length; i++){
+      let chrom = filteredByChr[i];
+      let newsegs = [];
+      for (let s = 0; s < chrom.segments.length; s++){
+        let seg = chrom.segments[s];
+        if (seg.color){
+          newsegs.push(seg);
+        }
+      }
+      chrom.segments = newsegs;
+    }
+  }
+  
+	filteredByChr = sortData(filteredByChr, viewType);
 
-	var topSvg = d3.select("#topsvg");
-	var chrUpdate = topSvg.selectAll("svg").data(d, function (d) {
-			return d.chr + "_" + d.side;
-		});
+	// Create chromosomes
+  let y = 0;
+  for (let i = 0; i < filteredByChr.length; i++){
+    let chrom = filteredByChr[i];
+    if (chrom.segments.length){
+      let newdiv = chrom.div;
+      let isnew = false;
+      if (!newdiv){
+        newdiv = document.createElement('DIV');
+        chrom.div = newdiv;
+        isnew = true;
+      }
+      newdiv.id = `chrdiv${chrom.chr}_${chrom.side}`;
+      newdiv.style.width = getChrBoxWidth(chrom.chr, chrsize) + 'px';
+      newdiv.style.height = 1 + chrom.numRows * (segmentHeight + 1) + 'px'
+      newdiv.style.top = y + 'px';
+      newdiv.style.left = 20 + 'px';
+      newdiv.style.position = 'absolute';
+      newdiv.style.border = '2px solid black';
+      newdiv.style.margin = '';
+      newdiv.style.padding = '';
+      newdiv.addEventListener('click', clickSeg);
+      newdiv.addEventListener('dblclick', dblClickSeg);
+      newdiv.addEventListener('contextmenu', contextMenu);
+//      newdiv.ondblclick="dblClickSeg(event);";
+  //    newdiv.oncontextmenu="contextMenu(event);";
 
-	// Create chromosomes that were not previously displayed
-	var chrEnter = chrUpdate.enter();
-	var chrSvg = chrEnter.append("svg").attr("id", function (d) {
-			return `chrsvg${d.chr}_${d.side}`
-		}).attr("width", "100%");
-	chrSvg.append("text").attr("x", 20).attr("y", 10).attr("class", "chrlabel").attr("font-family", "Verdana").attr("font-size", 10).attr("font-weight", "700").attr("text-anchor", "end").attr("fill", "grey").text(function (d) {
-		return d.chr == 23 ? 'X' : `${d.chr}`
-	});
-	var g = chrSvg.append("g").attr("transform", "translate(30)").attr("id", function (d) {
-			return `chrg${d.chr}_${d.side}`
-		});
-	g.append("rect").attr("id", function (d) {
-		return `chrrect${d.chr}_${d.side}`
-	}).attr("class", "chrbox").attr("x", 0).attr("y", 0).attr("rx", 5).attr("ry", 5).attr("height", function (d, i) {
-		return 1 + d.numRows * (segmentHeight + 1)
-	}).style("fill", "white").style("stroke-width", "1").style("stroke", "grey");
-
-	var chrBoxUpdate = d3.selectAll(".chrbox");
-	chrBoxUpdate.attr("width", function (d) {
-		return getChrBoxWidth(d.chr, chrsize)
-	});
-
-	chrUpdate.attr("height", function (d) {
-		return 1 + d.numRows * (segmentHeight + 1)
-	});
-
-	for (var chr in d) {
-		updateChr(d[chr], getChrBoxWidth(d[chr].chr, chrsize))
-	}
-
-	// Remove chromosomes that should no longer be displayed
-	chrUpdate.exit().remove();
-
-	var y = 0;
-	for (var i = 0; i < d.length; i++) {
-		var node = d3.select(`#chrsvg${d[i].chr}_${d[i].side}`);
-		node.attr("y", y);
-		y += 1 + d[i].numRows * (segmentHeight + 1) + 15;
-	}
-
-	d3.select(`#topsvg`).attr("height", y).attr("viewBox", `0 0 ${width + 50} ${y}`).attr("preserveAspectRatio", "none");
+      // only display if not filtered by chromosome
+      if (chrview && (chrom.chr != chrview)){
+        newdiv.style.display = 'none';
+      } else {
+        y += 1 + chrom.numRows * (segmentHeight + 1);
+        newdiv.style.display = 'block';
+      }
+      
+      if (isnew){
+        let label = document.createElement('DIV');
+        label.style.position = 'absolute';
+        label.style.left = -20 + 'px';
+        label.innerHTML = (chrom.chr == 23) ? 'X' : `${chrom.chr}`
+        newdiv.append(label);
+        rootDiv.append(newdiv);
+      }
+      
+      // create segments 
+      addSegments(newdiv, chrom, getChrBoxWidth(chrom.chr, chrsize));
+    }
+  }
 }
+
+function updateViewType(){
+	var viewType = document.getElementById("viewtype").value;
+	filteredByChr = sortData(filteredByChr, viewType);
+  updatePosn();
+}
+
+function updateHidden(){
+  updateData();
+  updateDivDisplay();
+}
+
+function updatePosn(){
+	var viewType = document.getElementById("viewtype").value;
+	var chrview = +document.getElementById("chrview").value;
+	var segmentHeight = +document.getElementById("segmentHeight").value;
+	var chrsize = document.getElementById("chrsize").value;
+  
+
+  let y = 0;
+  for (let i = 0; i < filteredByChr.length; i++){
+    let chrom = filteredByChr[i];
+    if (chrom.div){
+      let chromwidth = getChrBoxWidth(chrom.chr, chrsize);
+      var sc = (len)=>{
+        let newlen = (len/chrlen[chrom.chr])*chromwidth;
+        return newlen;
+      };
+      let height = 1 + chrom.numRows * (segmentHeight + 1) + 'px'
+      let top = y + 'px';
+      y += 1 + chrom.numRows * (segmentHeight + 1);
+
+      if (chrom.div.style.width !== chromwidth + 'px') chrom.div.style.width = chromwidth + 'px';
+      if (chrom.div.style.height !== height) chrom.div.style.height = height;
+      if (chrom.div.style.top !== top) chrom.div.style.top = top;
+      for (let s = 0; s < chrom.segments.length; s++){
+        let d = chrom.segments[s];
+        if (d.segdiv){
+          let width = (sc(d.end) - sc(d.start)) + 'px';
+          let height = segmentHeight + 'px'
+          let top = (1 + d.row * (segmentHeight + 1)) + 'px';
+          let left = sc(d.start) + 'px';
+          if (d.segdiv.style.top !== top) d.segdiv.style.top = top;
+          if (d.segdiv.style.height !== height) d.segdiv.style.height = height;
+          if (d.segdiv.style.width !== width) d.segdiv.style.width = width;
+          if (d.segdiv.style.left !== left) d.segdiv.style.left = left;
+        }
+      }
+    }
+  }
+    
+}
+
+
 
 function updateData() {
 	var fromkit = document.getElementById("fromkit").value;
