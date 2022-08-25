@@ -4,7 +4,6 @@
 * A chromosome browser to easily find overlapping DNA segments between your matches
 * Visualize segment data from multiple sources at the same time: gedmatch, familytreedna, myheritage, 23andme or your handcrafted csv file.
 
-**Try it**: https://yulvil.github.io/chromosome-browser.html
 
 Features
 * Copy/paste your CSV data (gedmatch, familytreedna, myheritage, 23andme)
@@ -16,6 +15,14 @@ Features
 * Include or exclude kits (persons)
 * Different views (compact, by kit, ordered by segment)
 * You can save the webpage to your desktop and use the Chromosome Browser without Internet connection.
+* double click a segment to highlight all segments for that match.
+* right click to highlight all segments which overlap with that DNA kit.
+* right click to un-highlight all segments which overlap with that DNA kit.
+* Choose to hide segments not highlighted.
+
+Basically, you can now choose what kits you want to see easily, and interactively.
+e.g. I have a distant cousin who shares my great grandfather.  Now I can choose to highlight segements whoich are common with them, and then choose to exclude segments which are common to my great grandfather's wife.
+
 
 ### CSV data formats
 
