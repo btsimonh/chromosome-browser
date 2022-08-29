@@ -19,10 +19,15 @@ Features
 * right click to highlight all segments which overlap with that DNA kit.
 * right click to un-highlight all segments which overlap with that DNA kit.
 * Choose to hide segments not highlighted.
+* drop a myHeritage matches list(s), allowing right-click to Review match or View tree.
+
 
 Basically, you can now choose what kits you want to see easily, and interactively.
 e.g. I have a distant cousin who shares my great grandfather.  Now I can choose to highlight segements whoich are common with them, and then choose to exclude segments which are common to my great grandfather's wife.
 
+Also identifies segments which have a common start point or end point.  These segments may indicate a common ancestor *above* a known common ancestor if the segment start/end is within a segment from a known match.
+
+These 'interesting matches' may be downloaded from a right click.
 
 ### CSV data formats
 
@@ -49,6 +54,23 @@ gedmatch.com segments file format
 ```
 "Display Name","Surname","Chromosome Number","Chromosome Start Point","Chromosome End Point","Genetic Distance","# SNPs","Full IBD","Link to Compare View","Sex","Birth Year","Set Relationship","Predicted Relationship","Relative Range","Percent DNA Shared","# Segments Shared","Maternal Side","Paternal Side","Maternal Haplogroup","Paternal Haplogroup","Birthplace","Residence","Family Surnames","Family Locations","Maternal Grandmother Birth Country","Maternal Grandfather Birth Country","Paternal Grandmother Birth Country","Paternal Grandfather Birth Country","Self Reported Ashkenazi Jewish Descent","Notes","Sharing Status"
 ```
+
+
+### Actions
+
+when using a myHeritage file, yo can add to the top an actions section to highlight ot unhighlight certain kits and overlapping kits.
+
+this works like the right-click highlight and unhighlight - just saves you finding all the kits you are interested in every time.
+
+Add:
+```
+action,<kit ID>,<name for ref>,,,,,,,,highlight
+action,<kit ID>,<name for ref>,,,,,,,,unhighlight
+action,<kit ID>,<name for ref>,,,,,,,,ignore
+```
+
+This allows you to pre-highlight kits segments you are specifically interested in.
+
 
 ### Export segments file
 
