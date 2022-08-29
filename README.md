@@ -27,7 +27,7 @@ e.g. I have a distant cousin who shares my great grandfather.  Now I can choose 
 
 Also identifies segments which have a common start point or end point.  These segments may indicate a common ancestor *above* a known common ancestor if the segment start/end is within a segment from a known match.
 
-These 'interesting matches' may be downloaded from a right click.
+These 'interesting matches' may be downloaded from a right click.  The 'contained' flag indicates that either the start or end of the match is within a segment of the first primary kit.
 
 ### CSV data formats
 

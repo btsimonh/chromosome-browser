@@ -698,6 +698,7 @@ function csvParse(text) {
 				"kit": e.kitFrom,
 				"name": nameFrom,
         outlineColour: cat20(e.kitFrom),
+        kits:{},
 			};
       if (emailFrom){
 				kits[e.kitFrom].email = emailFrom;
@@ -714,11 +715,13 @@ function csvParse(text) {
 				"name": nameTo,
 				"color": color,
         "opacity": opacity,
+        kits:{},
 			};
       if (emailTo){
         kits[e.kitTo].email = emailTo;
       }
 		}
+    kits[e.kitFrom].kits[e.kitTo] = kits[e.kitTo];
     
     // manually added column to help highlight or not...
     if (d.type){
@@ -800,9 +803,36 @@ function loadData() {
     "name": 'all',
     "email": ''
   };
+  kits['common'] = {
+    "kit": 'common',
+    "name": 'common',
+    "email": ''
+  };
 
   
+  let common = [];
+  let kitfroms = Object.keys(data);
+
+  for (let i = 0; i < all.length; i++){
+    let both = true;
+    let seg = all[i];
+    for (let j = 0; j < kitfroms.length; j++){
+      if (kitfroms[j] === seg.kitTo){
+        both = true;
+        break;
+      }
+      if (!kits[kitfroms[j]].kits[seg.kitTo]){
+        both = false;
+      }
+    }
+    if (both){
+      common.push(seg);
+    }
+  }
+  
   data['all'] = all;
+  data['common'] = common;
+  
   
   getRSIDs();
   pruneRSIDs(startRSIDs);
@@ -924,8 +954,13 @@ function extractRSIDs(source, type){
       seg.contained = false;
       for (let k = 0; k < srcsegs.length; k++){
         let srcseg = srcsegs[k];
-        if (seg.chr === srcseg.chr && seg.start > srcseg.start && seg.end < srcseg.end){
-          seg.contained = true;
+        if (seg.chr === srcseg.chr){
+          if (seg.start > srcseg.start && seg.start < srcseg.end){
+            seg.contained = true;
+          }
+          if (seg.end > srcseg.start && seg.end < srcseg.end){
+            seg.contained = true;
+          }
         }
       }
       let kit = kits[seg.kitTo];
@@ -1496,7 +1531,7 @@ function updateDivDisplay() {
       let newsegs = [];
       for (let s = 0; s < chrom.segments.length; s++){
         let seg = chrom.segments[s];
-        if (seg.color){
+        if (seg.highlight){
           newsegs.push(seg);
         }
       }
