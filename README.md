@@ -7,6 +7,9 @@
 try it:
 https://btsimonh.github.io/chromosome-browser/
 
+instructions:
+https://github.com/btsimonh/chromosome-browser/wiki
+
 Features
 * Copy/paste your CSV data (gedmatch, familytreedna, myheritage, 23andme)
 * Drag and drop CSV files from your desktop
