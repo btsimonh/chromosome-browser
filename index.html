@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Yulvil Chromosome Browser</title>
+    <title>Yulvil/btsimonh Chromosome Browser</title>
     <script src="https://d3js.org/d3.v4.min.js"></script>
     <style>
 div.tooltip {
@@ -113,8 +113,8 @@ nav {
 .chrbox {
 }
 
-#about a:link, #about a:visited {
-	color: white;
+div a:link, div a:visited {
+	color: yellow;
 	font-weight: bold;
 }
 
@@ -182,8 +182,10 @@ nav {
 
 <div class="submenu">
 <div class="inputs" id="none">
+<a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
 </div>
 <div class="inputs" id="data">
+<a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
 <div style="width: 100%; overflow: hidden;">
 
 <div class="drop_zone" ondrop="dropHandler(event);" ondragover="dragOverHandler(event);">
@@ -222,6 +224,7 @@ nav {
 
 </div>
 <div class="inputs" id="filters">
+<a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
 <label for="minCm">Centimorgan size</label>
 from <input id="minCm" type="number" value="10" onChange="updateCm();" onInput="updateCm();">
 to <input id="maxCm" type="number" value="" onChange="updateCm();" onInput="updateCm();">
@@ -237,6 +240,7 @@ to <input id="maxCm" type="number" value="" onChange="updateCm();" onInput="upda
 <textarea name="excludekits" id="excludekits" onChange="updateAll();"></textarea>
 </div>
 <div class="inputs" id="display">
+<a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
 <label for="chrview">Chromosome</label>
 <select id="chrview" onChange="updateAll()">
   <option value="0">All</option>
@@ -301,7 +305,7 @@ to <input id="maxCm" type="number" value="" onChange="updateCm();" onInput="upda
 
 </div>
 <div class="inputs" id="about">
-Copyright (c) 2018 yulvil <a href="https://github.com/yulvil/chromosome-browser">Help</a> and <a href="https://github.com/yulvil/chromosome-browser">Source Code</a>
+Copyright (c) 2018 yulvil, 2022 btsimonh <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a> and <a href="https://github.com/btsimonh/chromosome-browser" target="_blank">Source Code</a>
 </div>
 </div>
 <div class="tooltip" id="tooltip" style="opacity=0;"></div>

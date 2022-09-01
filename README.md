@@ -4,6 +4,8 @@
 * A chromosome browser to easily find overlapping DNA segments between your matches
 * Visualize segment data from multiple sources at the same time: gedmatch, familytreedna, myheritage, 23andme or your handcrafted csv file.
 
+try it:
+https://btsimonh.github.io/chromosome-browser/
 
 Features
 * Copy/paste your CSV data (gedmatch, familytreedna, myheritage, 23andme)
