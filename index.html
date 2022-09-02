@@ -306,6 +306,7 @@ to <input id="maxCm" type="number" value="" onChange="updateCm();" onInput="upda
 </div>
 <div class="inputs" id="about">
 Copyright (c) 2018 yulvil, 2022 btsimonh <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a> and <a href="https://github.com/btsimonh/chromosome-browser" target="_blank">Source Code</a>
+<div>Page views: <span id="visits">...</span></div>
 </div>
 </div>
 <div class="tooltip" id="tooltip" style="opacity=0;"></div>
@@ -328,6 +329,17 @@ Copyright (c) 2018 yulvil, 2022 btsimonh <a href="https://github.com/btsimonh/ch
   
     <script>
 "use strict;";
+
+// basic page counter; no informaton is sent to this server.
+if (!document.URL.startsWith('file:')){
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "https://api.countapi.xyz/hit/btsimonh.github.io-chromosome-browser/visits");
+  xhr.responseType = "json";
+  xhr.onload = function() {
+      document.getElementById('visits').innerText = this.response.value;
+  }
+  xhr.send();
+}
 
 var compareSegment = function (a, b) {
 	if (a.start < b.start) {
