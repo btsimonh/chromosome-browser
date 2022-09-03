@@ -276,6 +276,13 @@ to <input id="maxCm" type="number" value="" onChange="updateCm();" onInput="upda
   <option value="proportional">proportional</option>
 </select>
 
+<label for="nametype">Name type</label>
+<select id="nametype" onchange="updatePosn();">
+  <option value="name" selected="selected">name</option>
+  <option value="kit">kit id</option>
+  <option value="index">index</option>
+</select>
+
 <br/><br/>
 <label for="viewtype">View Type</label>
 <select id="viewtype" onchange="updateViewType();">
@@ -322,13 +329,78 @@ Copyright (c) 2018 yulvil, 2022 btsimonh <a href="https://github.com/btsimonh/ch
     <button onclick="menuClick(event, 0)"> Highlight all segments which intersect this kit</button><br/>
     <button onclick="menuClick(event, 1)"> unHighlight all segments which intersect this kit</button><br/>
     <button onclick="menuClick(event, 2)"> Download Interesting Matches</button><br/>
-    <button onclick="menuClick(event, 3)"> View Tree</button><br/>
+    <button onclick="menuClick(event, 3)"> View Tree <span id="treecount">0</span></button><br/>
     <button onclick="menuClick(event, 4)"> Review Match</button><br/>
   </nav>
 
   
     <script>
 "use strict;";
+
+
+// the raw data:
+// all the segments.
+
+// like:
+// data = {
+//   "srckitid1":[ { seg 1-1 },{ seg 1-2 },...], - segments from first source kit
+//   "srckitid2":[ { seg 1-2 },{ seg 2-2 },...], - segments from second source kit
+//   "all":[{ seg 1-1 },{ seg 1-2 },...,{ seg 1-2 },{ seg 2-2 },...], - all segments from all kits
+//   "common":[{ seg 1-1 },...,{ seg 2-2 },...], - segments common to the first two source kits
+// }
+var data = {};
+
+
+// indexing
+// segment id to segment lookup
+var segids = {};
+
+// data after filter - used for display
+var filteredData = [];
+// final filtered data?
+var filteredByChr;
+
+// actions list
+var actions = [];
+
+// kits = {
+//   "AZ123": {"name": "John Doe", "email": "a@b.c", "color": "..."},
+// }
+var kits = {}; // - all kits including source kits.
+
+// next kit iindex - used to anonomyse display
+let kitindex = 0;
+
+// segments by RSID
+let startRSIDs = {};
+let endRSIDs = {};
+
+// dynamic created for download.
+let interestingsegs = {};
+
+
+
+// global variables used:
+// https://en.wikipedia.org/wiki/Chromosome#Human_chromosomes
+const chrlen = [0, 247199719, 242751149, 199446827, 191263063, 180837866, 170896993, 158821424, 146274826, 140442298, 135374737, 134452384, 132289534, 114127980, 106360585, 100338915, 88822254, 78654742, 76117153, 63806651, 62435965, 46944323, 49528953, 154913754];
+
+
+var contextMenuClassName = "context-menu";
+var contextMenuItemClassName = "context-menu__item";
+var contextMenuLinkClassName = "context-menu__link";
+var contextMenuActive = "context-menu--active";
+var menu = document.querySelector("#context-menu");
+var menuItems = menu.querySelectorAll(".context-menu__item");
+var menuState = 0;
+var menuWidth;
+var menuHeight;
+var menuPosition;
+var menuPositionX;
+var menuPositionY;
+var menuSegid;
+
+
+
 
 // basic page counter; no informaton is sent to this server.
 if (!document.URL.startsWith('file:')){
@@ -420,19 +492,6 @@ function getPosition(e) {
   }
 }
 
-var contextMenuClassName = "context-menu";
-var contextMenuItemClassName = "context-menu__item";
-var contextMenuLinkClassName = "context-menu__link";
-var contextMenuActive = "context-menu--active";
-var menu = document.querySelector("#context-menu");
-var menuItems = menu.querySelectorAll(".context-menu__item");
-var menuState = 0;
-var menuWidth;
-var menuHeight;
-var menuPosition;
-var menuPositionX;
-var menuPositionY;
-var menuSegid;
 
 function contextMenu(e) {
   console.log('Context', e);
@@ -441,6 +500,16 @@ function contextMenu(e) {
   if ( taskItemInContext ) {
     e.preventDefault();
     menuSegid = taskItemInContext.id;
+    
+    let kit = getKitFromSeg(menuSegid);
+    if (!kit) return;
+    let treecountel = document.getElementById('treecount');
+    if (matchesMeta[kit] && matchesMeta[kit]['Number of individuals in the tree']){
+        treecountel.innerHTML = matchesMeta[kit]['Number of individuals in the tree'];
+    } else {
+        treecountel.innerHTML = 'unknown';
+    }
+    
     toggleMenuOn();
     positionMenu(e);
   } else {
@@ -503,6 +572,7 @@ function menuClick(ev, item){
 
   let segid = menuSegid;
   let kit = getKitFromSeg(segid);
+  if (!kit) return;
 
   switch(item){
     case 0:
@@ -633,17 +703,6 @@ function compact(data, fcmp) {
 //   "kit1": [segments],
 //   "kit2": [segments]
 // }
-var data = {};
-var segids = {};
-
-var filteredData = [];
-
-var actions = [];
-
-// kits = {
-//   "AZ123": {"name": "John Doe", "email": "a@b.c", "color": "..."},
-// }
-var kits = {};
 
 var cat20 = d3.scaleOrdinal(d3.schemeCategory20);
 
@@ -660,7 +719,6 @@ function getSide(d) {
 			return +v % 3;
 	}
 }
-
 
 
 function csvParse(text) {
@@ -724,6 +782,7 @@ function csvParse(text) {
 				"name": nameFrom,
         outlineColour: cat20(e.kitFrom),
         kits:{},
+        index: kitindex++,
 			};
       if (emailFrom){
 				kits[e.kitFrom].email = emailFrom;
@@ -741,6 +800,7 @@ function csvParse(text) {
 				"color": color,
         "opacity": opacity,
         kits:{},
+        index: kitindex++,
 			};
       if (emailTo){
         kits[e.kitTo].email = emailTo;
@@ -786,8 +846,6 @@ function rewriteData(id) {
 	}
 }
 
-let startRSIDs = {};
-let endRSIDs = {};
 
 function loadData() {
 	data = {};
@@ -948,7 +1006,6 @@ function pruneRSIDs(source){
   */
 }
 
-let interestingsegs = {};
 
 function getInterestingSegs(seg){
   interestingsegs = {};
@@ -1049,9 +1106,6 @@ function setOptions() {
 	});
 	sel.exit().remove();
 }
-
-// https://en.wikipedia.org/wiki/Chromosome#Human_chromosomes
-const chrlen = [0, 247199719, 242751149, 199446827, 191263063, 180837866, 170896993, 158821424, 146274826, 140442298, 135374737, 134452384, 132289534, 114127980, 106360585, 100338915, 88822254, 78654742, 76117153, 63806651, 62435965, 46944323, 49528953, 154913754];
 
 function filterData(segments, includekits, excludekits, minCm, maxCm) {
   let org = filteredData;
@@ -1285,6 +1339,8 @@ function clickSeg(ev) {
 
 function dblClickSeg(ev){
   let kit = getKitFromSeg(ev.target.id);
+  if (!kit) return;
+
   highlightAllMatching(kit, true);
   setHighlight();
 }
@@ -1317,6 +1373,7 @@ function highlightKit(kit, enable){
 }
 
 function getKitFromSeg(segid){
+  if (!segids[segid]) return;
   return segids[segid].kitTo;
 }
 
@@ -1510,7 +1567,6 @@ function updateAll() {
 }
 
 
-var filteredByChr;
 
 function updateDivDisplay() {
 	var viewType = document.getElementById("viewtype").value;
@@ -1637,6 +1693,8 @@ function updatePosn(){
 	var segmentHeight = +document.getElementById("segmentHeight").value;
 	var chrsize = document.getElementById("chrsize").value;
   
+  var nametype =  document.getElementById("nametype").value;
+  
 
   let y = 0;
   for (let i = 0; i < filteredByChr.length; i++){
@@ -1665,6 +1723,20 @@ function updatePosn(){
           if (d.segdiv.style.height !== height) d.segdiv.style.height = height;
           if (d.segdiv.style.width !== width) d.segdiv.style.width = width;
           if (d.segdiv.style.left !== left) d.segdiv.style.left = left;
+          let name = kits[d.kitTo].name;
+          switch (nametype){
+            case 'name':
+              break;
+            case 'kit':
+              name = d.kitTo;
+              break;
+            case 'index':
+              name = kits[d.kitTo].index;
+              break;
+          }
+          if (d.segdiv.innerHTML !== name){
+            d.segdiv.innerHTML = name;
+          }
         }
       }
     }
