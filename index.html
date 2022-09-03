@@ -339,6 +339,15 @@ if (!document.URL.startsWith('file:')){
       document.getElementById('visits').innerText = this.response.value;
   }
   xhr.send();
+} else {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "https://api.countapi.xyz/get/btsimonh.github.io-chromosome-browser/visits");
+  xhr.responseType = "json";
+  xhr.onload = function() {
+      document.getElementById('visits').innerText = this.response.value;
+  }
+  xhr.send();
+
 }
 
 var compareSegment = function (a, b) {
@@ -1314,19 +1323,21 @@ function getKitFromSeg(segid){
 
 function doActions(){
   for (let i = 0; i < actions.length; i++){
-    switch(actions[i].type){
-      case 'highlight':
-        highlightAllMatching(actions[i].kit, true);
-        kits[actions[i].kit].type = 'highlight';
-        break;
-      case 'unhighlight':
-        highlightAllMatching(actions[i].kit, false);
-        kits[actions[i].kit].type = 'ignore';
-        break;
-      case 'ignore':
-        //highlightAllMatching(actions[i].kit, false);
-        kits[actions[i].kit].type = 'ignore';
-        break;      
+    if (kits[actions[i].kit]){
+      switch(actions[i].type){
+        case 'highlight':
+          highlightAllMatching(actions[i].kit, true);
+          kits[actions[i].kit].type = 'highlight';
+          break;
+        case 'unhighlight':
+          highlightAllMatching(actions[i].kit, false);
+          kits[actions[i].kit].type = 'ignore';
+          break;
+        case 'ignore':
+          //highlightAllMatching(actions[i].kit, false);
+          kits[actions[i].kit].type = 'ignore';
+          break;      
+      }
     }
   }
 }
