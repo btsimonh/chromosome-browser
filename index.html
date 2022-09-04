@@ -204,6 +204,9 @@ div a:link, div a:visited {
 <div class="drop_zone" ondrop="dropHandler2(event);" ondragover="dragOverHandler(event);">
   <p>&#128193; Select myHeritage matches list file from your computer</p>
 </div>
+<div class="drop_zone">
+  <button onclick="downloadjson();">Download Data</button>
+</div>
 
 
 <div style="float: left;">
@@ -350,10 +353,15 @@ Copyright (c) 2018 yulvil, 2022 btsimonh <a href="https://github.com/btsimonh/ch
 // }
 var data = {};
 
+// match data - e.g. tree url, tree count, name, etc.
+var matchesMeta = {};
+
 
 // indexing
 // segment id to segment lookup
 var segids = {};
+// segment id to div lookup
+var segdivs = {};
 
 // data after filter - used for display
 var filteredData = [];
@@ -400,6 +408,22 @@ var menuPositionY;
 var menuSegid;
 
 
+
+async function downloadjson(){
+  let downloaddata = { sources: {} };
+  let datakeys = Object.keys(data);
+  for (let i = 0; i < datakeys.length; i++){
+    if (datakeys[i] !== 'all' && datakeys[i] !== 'common'){
+      downloaddata.sources[datakeys[i]] = data[datakeys[i]];
+    }
+  }
+  downloaddata.kits = kits;
+  downloaddata.matchesMeta = matchesMeta;
+  
+  let gz = await compress(JSON.stringify(downloaddata, null, ' '));
+  
+  download(gz, "data.json.gz");
+}
 
 
 // basic page counter; no informaton is sent to this server.
@@ -806,7 +830,7 @@ function csvParse(text) {
         kits[e.kitTo].email = emailTo;
       }
 		}
-    kits[e.kitFrom].kits[e.kitTo] = kits[e.kitTo];
+    kits[e.kitFrom].kits[e.kitTo] = true;
     
     // manually added column to help highlight or not...
     if (d.type){
@@ -930,7 +954,6 @@ function loadData() {
 }
 
 
-var matchesMeta = {};
 
 function loadMatchesData(){
 
@@ -949,7 +972,9 @@ function loadMatchesData(){
       kitFrom = kitFrom.join('-');
       kitTo = matchID.join('-');
     
-      matchesMeta[kitTo] = matches[m];
+      if (kitTo){
+        matchesMeta[kitTo] = matches[m];
+      }
     }
   }
 }
@@ -982,28 +1007,6 @@ function pruneRSIDs(source){
       delete source[RSID];
     }
   }
-
-/*
-  let k = Object.keys(source);
-  
-  let kit = k[0];
-  for (let i = 1; i < k.length; i++){
-    if (source[kit]){
-      let RSIDs = Object.keys(source[kit]);
-      for (let j = 0; j < RSIDs.length; j++){
-        let RSID = RSIDs[j];
-        if (source[k[i]]){
-          if (source[k[i]][RSID]){
-            console.log('common:', source[k[i]][RSID], source[kit][RSID]);
-          } else {
-            delete source[k[i]][RSID];
-            delete source[kit][RSID];
-          }
-        }
-      }
-    }
-  }
-  */
 }
 
 
@@ -1126,27 +1129,27 @@ function filterData(segments, includekits, excludekits, minCm, maxCm) {
     if (includekits.length > 0) {
       if (includekits.includes(e.kitTo)){
         filteredsegs.push(e);
-        if (e.segdiv) e.segdiv.style.display = 'none';
+        if (segdivs[e.id]) segdivs[e.id].style.display = 'none';
         continue;
       }
     }
     if (e.cm < minCm){
-      if (e.segdiv) e.segdiv.style.display = 'none';
+      if (segdivs[e.id]) segdivs[e.id].style.display = 'none';
       continue;
     }
     if (e.cm > maxCm){
-      if (e.segdiv) e.segdiv.style.display = 'none';
+      if (segdivs[e.id]) segdivs[e.id].style.display = 'none';
       continue;
     }
 
     if (excludekits.length > 0) {
       if (excludekits.includes(e.kitTo)){
-        if (e.segdiv) e.segdiv.style.display = 'none';
+        if (segdivs[e.id]) segdivs[e.id].style.display = 'none';
         continue;
       }
     }
     filteredsegs.push(e);
-    if (e.segdiv) e.segdiv.style.display = 'block';
+    if (segdivs[e.id]) segdivs[e.id].style.display = 'block';
   }
 
 	for (var i = 0; i <= 23; i++) {
@@ -1324,8 +1327,7 @@ function clickSeg(ev) {
       break;
     }
   }
-
-  if (seg && seg.segdiv){
+  if (seg && segdivs[seg.id]){
     let highlighted = kits[kit].highlight;
     
     let enable = !highlighted;
@@ -1353,16 +1355,16 @@ function highlightKit(kit, enable){
   for (let s = 0; s < segments.length; s++){
     let seg = segments[s];
     if (seg.kitTo === kit){
-      if (seg.segdiv){
+      if (segdivs[seg.id]){
         if (!enable){
-          seg.segdiv.style.opacity = 0.5;
+          segdivs[seg.id].style.opacity = 0.5;
           delete seg.color
           kits[seg.kitTo].opacity = 0.5;
           seg.highlight = false;
           kits[seg.kitTo].highlight = false;
         } else {
-          seg.segdiv.style.opacity = 1;
-          seg.color = kits[seg.kitTo].color = seg.segdiv.style.backgroundColor;
+          segdivs[seg.id].style.opacity = 1;
+          seg.color = kits[seg.kitTo].color = segdivs[seg.id].style.backgroundColor;
           kits[seg.kitTo].opacity = 1;
           seg.highlight = true;
           kits[seg.kitTo].highlight = true;
@@ -1457,8 +1459,8 @@ function setHighlight(){
     let seg = segments[s];
     seg.highlight = kits[seg.kitTo].highlight;
     let opacity = seg.highlight? 1.0:0.5;
-    if (seg.segdiv && (+seg.segdiv.style.opacity) != opacity){
-      seg.segdiv.style.opacity = opacity;
+    if (segdivs[seg.id] && (+segdivs[seg.id].style.opacity) != opacity){
+      segdivs[seg.id].style.opacity = opacity;
     }
     kits[seg.kitTo].opacity = opacity;
   }
@@ -1476,14 +1478,14 @@ function addSegments(div, chrom, chrsize) {
 
   for (let s = 0; s < chrom.segments.length; s++){
     let d = chrom.segments[s];
-    let newdiv = d.segdiv;
+    let newdiv = segdivs[d.id];
     let isnew = false;
     if (!newdiv){
       newdiv = document.createElement('DIV');
       newdiv.id = d.id;
+      segdivs[d.id] = newdiv;
       isnew = true;
     }
-    d.segdiv = newdiv;
     newdiv.style.width = (sc(d.end) - sc(d.start)) + 'px';
     newdiv.style.height = segmentHeight + 'px'
     newdiv.style.top = (1 + d.row * (segmentHeight + 1)) + 'px';
@@ -1506,29 +1508,6 @@ function addSegments(div, chrom, chrsize) {
     }
     div.append(newdiv);
   }
-  
-/*
-  rectangleAttributesEnter.append("rect")
-		.attr("class", "segment")
-		.on("mouseover", function (d) {
-			name = "";
-			if (kits[d.kitTo].name !== d.kitTo) {
-				name = "<br>name " + kits[d.kitTo].name;
-			}
-			div.transition()
-			.duration(200)
-			.style("opacity", 1.0);
-			div.html(d.start.toLocaleString() + " to " + d.end.toLocaleString() + "<br>kit " + d.kitTo + name + "<br/>This segment " + d.cm.toFixed(1) + " cM")
-			.style("left", (d3.event.pageX + 40) + "px")
-			.style("top", (d3.event.pageY - 28) + "px");
-			console.log(d.start + " to " + d.end + " kit [" + d.kitTo + "] name " + d.name);
-		})
-		.on("mouseout", function (d) {
-			div.transition()
-			.duration(500)
-			.style("opacity", 0);
-		});
-*/
 }
 
 
@@ -1586,8 +1565,8 @@ function updateDivDisplay() {
     let segs = data[kits[k]] || [];
     // hide all segments which have divs - we may filter them out and they would remain.
     for (let i = 0; i < segs.length; i++){
-      if (segs[i].segdiv){
-        segs[i].segdiv.style.display = 'none';
+      if (segdivs[segs[i].id]){
+        segdivs[segs[i].id].style.display = 'none';
       }
     }
   }
@@ -1714,15 +1693,16 @@ function updatePosn(){
       if (chrom.div.style.top !== top) chrom.div.style.top = top;
       for (let s = 0; s < chrom.segments.length; s++){
         let d = chrom.segments[s];
-        if (d.segdiv){
+        if (segdivs[d.id]){
+          let div = segdivs[d.id];
           let width = (sc(d.end) - sc(d.start)) + 'px';
           let height = segmentHeight + 'px'
           let top = (1 + d.row * (segmentHeight + 1)) + 'px';
           let left = sc(d.start) + 'px';
-          if (d.segdiv.style.top !== top) d.segdiv.style.top = top;
-          if (d.segdiv.style.height !== height) d.segdiv.style.height = height;
-          if (d.segdiv.style.width !== width) d.segdiv.style.width = width;
-          if (d.segdiv.style.left !== left) d.segdiv.style.left = left;
+          if (div.style.top !== top) div.style.top = top;
+          if (div.style.height !== height) div.style.height = height;
+          if (div.style.width !== width) div.style.width = width;
+          if (div.style.left !== left) div.style.left = left;
           let name = kits[d.kitTo].name;
           switch (nametype){
             case 'name':
@@ -1734,8 +1714,8 @@ function updatePosn(){
               name = kits[d.kitTo].index;
               break;
           }
-          if (d.segdiv.innerHTML !== name){
-            d.segdiv.innerHTML = name;
+          if (div.innerHTML !== name){
+            div.innerHTML = name;
           }
         }
       }
@@ -1761,6 +1741,108 @@ function dragOverHandler(ev) {
 	// Prevent default behavior (Prevent file from being opened)
 	ev.preventDefault();
 }
+
+async function loadJson(fileitem, ext, cb) {
+	var file = fileitem;
+	var reader = new FileReader();
+	reader.onloadend = function () {
+    let data = reader.result;
+    if (ext === 'gz'){
+      decompress(data).then((text)=>{
+        let json = JSON.parse(text);
+        processJson(json);
+        setOptions();
+        setHighlight();
+        cb();
+      });
+    } else {
+      let json = JSON.parse(data);
+      processJson(json);
+      setOptions();
+      setHighlight();
+      cb();
+    }
+	}
+	reader.onerror = function () {
+		cb();
+	}
+  if (ext === 'gz'){
+    reader.readAsArrayBuffer(file);
+  } else {
+    reader.readAsText(file);
+  }
+}
+
+// compress string to arraybuffer
+function compress(string) {
+  const byteArray = new TextEncoder().encode(string);
+  const cs = new CompressionStream('gzip');
+  const writer = cs.writable.getWriter();
+  writer.write(byteArray);
+  writer.close();
+  return new Response(cs.readable).arrayBuffer();
+}
+
+// decompress arraybuffer to string
+function decompress(byteArray) {
+  const cs = new DecompressionStream('gzip');
+  const writer = cs.writable.getWriter();
+  writer.write(byteArray);
+  writer.close();
+  return new Response(cs.readable).arrayBuffer().then(function (arrayBuffer) {
+    return new TextDecoder().decode(arrayBuffer);
+  });
+}
+
+function processJson(downloaddata){
+  matchesMeta = downloaddata.matchesMeta || {};
+  kits = downloaddata.kits;
+  
+  data = {};
+  segids = {};
+  
+  let all = [];
+  
+  let sources = Object.keys(downloaddata.sources);
+  for (let i = 0; i < sources.length; i++){
+    data[sources[i]] = downloaddata.sources[sources[i]];
+    for (let j = 0; j < data[sources[i]].length; j++){
+      let seg = data[sources[i]][j];
+      all.push(seg);
+      segids[seg.id] = seg;
+    }
+  }
+  
+  let common = [];
+  let kitfroms = Object.keys(data);
+
+  for (let i = 0; i < all.length; i++){
+    let both = true;
+    let seg = all[i];
+    for (let j = 0; j < kitfroms.length; j++){
+      if (kitfroms[j] === seg.kitTo){
+        both = true;
+        break;
+      }
+      if (!kits[kitfroms[j]].kits[seg.kitTo]){
+        both = false;
+      }
+    }
+    if (both){
+      common.push(seg);
+    }
+  }
+
+  data['all'] = all;
+  data['common'] = common;
+  
+  getRSIDs();
+  pruneRSIDs(startRSIDs);
+  pruneRSIDs(endRSIDs);
+  
+}
+
+
 
 function loadFile(fileitem, resolve, reject) {
 	var file = fileitem;
@@ -1801,10 +1883,18 @@ function dropHandler(ev) {
 		for (var i = 0; i < ev.dataTransfer.items.length; i++) {
 			// If dropped items aren't files, reject them
 			if (ev.dataTransfer.items[i].kind === 'file') {
-				var t = new Promise((resolve, reject) => {
-						loadFile(ev.dataTransfer.items[i].getAsFile(), resolve, reject);
-					});
-				tasks.push(t);
+        let f = ev.dataTransfer.items[i].getAsFile();
+        let ext = f.name.toLowerCase().split('.').pop();
+        if (ext === 'json' || ext === 'gz'){
+          loadJson(f, ext, ()=>{
+            updateAll();
+          });
+        } else {
+          var t = new Promise((resolve, reject) => {
+              loadFile(f, resolve, reject);
+            });
+          tasks.push(t);
+        }
 			}
 		}
 	} else {
@@ -1817,11 +1907,13 @@ function dropHandler(ev) {
 	// Pass event to removeDragData for cleanup
 	removeDragData(ev)
 
-	// Once all files are loaded
-	Promise.all(tasks).then((msg) => {
-		loadData();
-		updateAll();
-	});
+  if (tasks.length){
+    // Once all files are loaded
+    Promise.all(tasks).then((msg) => {
+      loadData();
+      updateAll();
+    });
+  }
 }
 
 function dropHandler2(ev) {
@@ -1877,18 +1969,7 @@ function addCsvInput() {
 	node.children[4].id = "csvdata" + num;
 	node.children[4].name = "csvdata" + num;
 	div.appendChild(node);
-	return node.children[4];
-}
-
-function addCsvInput2() {
-	var div = document.getElementById("csvdatadiv");
-	var num = div.children.length;
-	var node = document.getElementById("csvdiv0").cloneNode(true);
-	node.id = "csvdiv" + num;
-	node.children[2].htmlFor = "csvdata" + num;
-	node.children[4].id = "csvdata" + num;
-	node.children[4].name = "csvdata" + num;
-	div.appendChild(node);
+  div.style.display = 'none';
 	return node.children[4];
 }
 

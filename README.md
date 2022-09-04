@@ -34,6 +34,15 @@ Also identifies segments which have a common start point or end point.  These se
 
 These 'interesting matches' may be downloaded from a right click.  The 'contained' flag indicates that either the start or end of the match is within a segment of the first primary kit.
 
+### Updates:
+
+```
+2022-09-04: 
+Download of combined data, including highlighting as data.json.gz
+Upload of .json or .gz file to restore your session.
+(basically, you can load a couple of segments files and a match list, do some higlighting.  
+On download the highlighting will be saved so you can return to the same point later)
+```
 ### CSV data formats
 
 Formats supported are
