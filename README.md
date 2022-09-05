@@ -37,6 +37,10 @@ These 'interesting matches' may be downloaded from a right click.  The 'containe
 ### Updates:
 
 ```
+2022-09-05:
+Changed highlighting.  Now all higlights are done via segments, and there are more right lcick options.
+Highlighting is retained in downloaded .gz file.
+
 2022-09-04: 
 Download of combined data, including highlighting as data.json.gz
 Upload of .json or .gz file to restore your session.

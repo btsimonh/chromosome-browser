@@ -162,6 +162,16 @@ div a:link, div a:visited {
   background-color: #0066aa;
 }
 
+.chrom {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.2),
+    rgba(0, 0, 0, 0.2) 10px,
+    rgba(0, 0, 0, 0.3) 10px,
+    rgba(0, 0, 0, 0.3) 20px
+  )
+}
+
     </style>
   </head>
   <body>
@@ -329,8 +339,18 @@ Copyright (c) 2018 yulvil, 2022 btsimonh <a href="https://github.com/btsimonh/ch
 </div>
 
   <nav id="context-menu" class="context-menu">
-    <button onclick="menuClick(event, 0)"> Highlight all segments which intersect this kit</button><br/>
-    <button onclick="menuClick(event, 1)"> unHighlight all segments which intersect this kit</button><br/>
+    <span>Highlight:</span>
+      <button onclick="menuClick(event, 0)">All kit matches</button>
+      <button onclick="menuClick(event, 11)">All seg matches</button>
+      <button onclick="menuClick(event, 9)">All</button>
+      <button onclick="menuClick(event, 7)">All kit</button>
+    <br/>
+    <span>un-Highlight:</span>
+      <button onclick="menuClick(event, 1)">All kit matches</button>
+      <button onclick="menuClick(event, 12)">All seg matches</button>
+      <button onclick="menuClick(event, 10)">All</button>
+      <button onclick="menuClick(event, 8)">All kit</button>
+    <br/>
     <button onclick="menuClick(event, 2)"> Download Interesting Matches</button><br/>
     <button onclick="menuClick(event, 3)"> View Tree <span id="treecount">0</span></button><br/>
     <button onclick="menuClick(event, 4)"> Review Match</button><br/>
@@ -351,7 +371,46 @@ Copyright (c) 2018 yulvil, 2022 btsimonh <a href="https://github.com/btsimonh/ch
 //   "all":[{ seg 1-1 },{ seg 1-2 },...,{ seg 1-2 },{ seg 2-2 },...], - all segments from all kits
 //   "common":[{ seg 1-1 },...,{ seg 2-2 },...], - segments common to the first two source kits
 // }
+// a segment is like:
+/*
+{
+  kitFrom: "kitid", - this is the source kit
+  kitTo: "kitid", - this is the compared kit
+  chr: 1-23, - chormosome of matched segment, X is 23
+  start: number, - start point
+  end: number, - end point
+  startRSID: "start RSID", - if in input data
+  endRSID: "end RSID", - if in input data
+  cm: number, - cm of segment
+  side: 0|1|2, - not in myHeritage data?
+  id: "unique id", - used in div tracking
+  mark: ""|"always"|"never", - control highlight of this segment.
+  
+  row: number, - calculated row position - recalculated on display change.
+  highlight: true|false, - copied from kits[kitTo].
+}
+*/
 var data = {};
+
+// kits = {
+//   "AZ123": {"name": "John Doe", "email": "a@b.c", "color": "..."},
+// }
+/*
+{
+    kit: "kit id",
+    name: "name on kit",
+    outlinecolour: "color", - color associated with source kit.
+    kits:{ - kits this source kit matched with.
+      "kitid1":true,
+      "kitid2":true,
+    },
+    kitindex: number, - used to anonomyse display for image posting,
+    email: "me@here", - if in data
+    highlight: true|false
+}
+*/
+var kits = {}; // - all kits including source kits.
+
 
 // match data - e.g. tree url, tree count, name, etc.
 var matchesMeta = {};
@@ -371,10 +430,6 @@ var filteredByChr;
 // actions list
 var actions = [];
 
-// kits = {
-//   "AZ123": {"name": "John Doe", "email": "a@b.c", "color": "..."},
-// }
-var kits = {}; // - all kits including source kits.
 
 // next kit iindex - used to anonomyse display
 let kitindex = 0;
@@ -600,11 +655,11 @@ function menuClick(ev, item){
 
   switch(item){
     case 0:
-      highlightAllMatching(kit, true);
+      highlightAllMatchingKit(kit, true);
       setHighlight();
       break;
     case 1:
-      highlightAllMatching(kit, false);
+      highlightAllMatchingKit(kit, false);
       setHighlight();
       break;
     case 2:
@@ -632,8 +687,33 @@ function menuClick(ev, item){
         }
       }
     } break;
+    case 5:{
+      highlightKit(kit, true);
+    } break;
+    case 6:{
+      highlightKit(kit, false);
+    } break;
+    case 7:{
+      highlightKit(kit, true);
+    } break;
+    case 8:{
+      highlightKit(kit, false);
+    } break;
+    case 9:{
+      highlightAll(true);
+    } break;
+    case 10:{
+      highlightAll(false);
+    } break;
+    case 11:{
+      highlightAllMatchingSeg(segid, true);
+    } break;
+    case 12:{
+      highlightAllMatchingSeg(segid, false);
+    } break;
     
   }
+  setHighlight();
 }
 
 // unused and incorrect
@@ -977,6 +1057,8 @@ function loadMatchesData(){
       }
     }
   }
+  // free memory
+  matchesData = [];
 }
 
 function getRSIDs(){
@@ -1313,7 +1395,7 @@ function clickSeg(ev) {
     toggleMenuOff();
     return;
   }
-
+/*
 	var segments = data['all'] || [];
 
   let id = ev.target.id;
@@ -1336,18 +1418,19 @@ function clickSeg(ev) {
     }
     
     highlightKit(kit, enable);
-  }
+  }*/
 }
 
 function dblClickSeg(ev){
   let kit = getKitFromSeg(ev.target.id);
   if (!kit) return;
 
-  highlightAllMatching(kit, true);
+  highlightAllMatchingKit(kit, true);
   setHighlight();
 }
 
 
+/*
 function highlightKit(kit, enable){
 	var fromkit = document.getElementById("fromkit").value;
 	var segments = data[fromkit] || [];
@@ -1373,6 +1456,7 @@ function highlightKit(kit, enable){
     }
   }
 }
+*/
 
 function getKitFromSeg(segid){
   if (!segids[segid]) return;
@@ -1385,15 +1469,15 @@ function doActions(){
     if (kits[actions[i].kit]){
       switch(actions[i].type){
         case 'highlight':
-          highlightAllMatching(actions[i].kit, true);
+          highlightAllMatchingKit(actions[i].kit, true);
           kits[actions[i].kit].type = 'highlight';
           break;
         case 'unhighlight':
-          highlightAllMatching(actions[i].kit, false);
+          highlightAllMatchingKit(actions[i].kit, false);
           kits[actions[i].kit].type = 'ignore';
           break;
         case 'ignore':
-          //highlightAllMatching(actions[i].kit, false);
+          //highlightAllMatchingKit(actions[i].kit, false);
           kits[actions[i].kit].type = 'ignore';
           break;      
       }
@@ -1405,17 +1489,19 @@ function highlightKits(){
   let keys = Object.keys(kits);
   for (let i = 0; i < keys.length; i++){
     if (kits[keys[i]].type === 'highlight'){
-      highlightAllMatching(keys[i], true);
+      highlightAllMatchingKit(keys[i], true);
     }
   }
   for (let i = 0; i < keys.length; i++){
     if (kits[keys[i]].type === 'ignore'){
-      highlightAllMatching(keys[i], false);
+      highlightAllMatchingKit(keys[i], false);
     }
   }
 }
 
-function highlightAllMatching(kit, enable){
+
+
+function highlightAllMatchingKit(kit, enable){
 	var segments = data['all'] || [];
 
   let kitsegs = {};
@@ -1435,15 +1521,10 @@ function highlightAllMatching(kit, enable){
         if ((seg.start < ks.start && seg.end > ks.start) ||
             (seg.start < ks.end && seg.end > ks.end) ||
             (seg.start >= ks.start && seg.end <= ks.end)){
-          if ((enable || kits[seg.kitTo].type === 'highlight') && (kits[seg.kitTo].type !== 'ignore')){
-            kits[seg.kitTo].highlight = true;
+          if (enable){
+            seg.mark = "always";
           } else {
-            if (kits[seg.kitTo].type !== 'highlight'){
-              if (seg.kitTo === 'D-9901AC20-79C0-438F-98CA-AB11FEFE1876'){
-                let here = true;
-              }
-              kits[seg.kitTo].highlight = false;
-            }
+            seg.mark = "never";
           }
         }
       }
@@ -1452,17 +1533,80 @@ function highlightAllMatching(kit, enable){
 
 }
 
+function highlightAllMatchingSeg(segid, enable){
+	var segments = data['all'] || [];
+
+  let kitsegs = {};
+  for (let s = 0; s < segments.length; s++){
+    let seg = segments[s];
+    if (seg.id === segid){
+      kitsegs[seg.chr] = kitsegs[seg.chr] || [];
+      kitsegs[seg.chr].push(seg);
+    }
+  }
+  
+  for (let s = 0; s < segments.length; s++){
+    let seg = segments[s];
+    if (kitsegs[seg.chr]){
+      for (let i = 0; i < kitsegs[seg.chr].length; i++){
+        let ks = kitsegs[seg.chr][i];
+        if ((seg.start < ks.start && seg.end > ks.start) ||
+            (seg.start < ks.end && seg.end > ks.end) ||
+            (seg.start >= ks.start && seg.end <= ks.end)){
+          if (enable){
+            seg.mark = "always";
+          } else {
+            seg.mark = "never";
+          }
+        }
+      }
+    }
+  }
+}
+
+
+// pass '' or 'always' or 'never'
+function highlightAll(enable){
+	var segments = data['all'] || [];
+
+  for (let s = 0; s < segments.length; s++){
+    let seg = segments[s];
+    if (enable){
+      seg.mark = "always";
+    } else {
+      seg.mark = "never";
+    }
+  }
+}
+
+// highlight segs from one kit.
+function highlightKit(kitid, enable){
+  let kit = kits[kitid];
+  if (kit) kit.higlight = enable;
+  var segments = data['all'] || [];
+  // highlight segs from kit highlight only.
+  for (let s = 0; s < segments.length; s++){
+    let seg = segments[s];
+    if (seg.kitTo === kitid){
+      seg.mark = enable?'always':'never';
+    }
+  }
+}
+
+
 function setHighlight(){
 	var segments = data['all'] || [];
   // highlight segs from kit highlight only.
   for (let s = 0; s < segments.length; s++){
     let seg = segments[s];
-    seg.highlight = kits[seg.kitTo].highlight;
-    let opacity = seg.highlight? 1.0:0.5;
+    let highlight = true; //kits[seg.kitTo].highlight; // default to kit highlight
+    if (seg.mark === 'always') highlight = true;
+    if (seg.mark === 'never') highlight = false;
+    let opacity = highlight? 1.0:0.5;
     if (segdivs[seg.id] && (+segdivs[seg.id].style.opacity) != opacity){
       segdivs[seg.id].style.opacity = opacity;
     }
-    kits[seg.kitTo].opacity = opacity;
+    //kits[seg.kitTo].opacity = opacity;
   }
 }
 
@@ -1490,7 +1634,13 @@ function addSegments(div, chrom, chrsize) {
     newdiv.style.height = segmentHeight + 'px'
     newdiv.style.top = (1 + d.row * (segmentHeight + 1)) + 'px';
     newdiv.style.left = sc(d.start) + 'px';
-    newdiv.style.opacity = kits[d.kitTo].opacity;
+
+    let highlight = true; //kits[d.kitTo].highlight; // default to kit highlight
+    if (d.mark === 'always') highlight = true;
+    if (d.mark === 'never') highlight = false;
+    let opacity = highlight? 1.0:0.5;
+    
+    newdiv.style.opacity = opacity;
     newdiv.style.display = 'block';
     
     if (isnew) {
@@ -1560,14 +1710,11 @@ function updateDivDisplay() {
 	var fromkit = document.getElementById("fromkit").value;
 	let segments = data[fromkit] || [];
   
-  let kits = Object.keys(data);
-  for (let k = 0; k < kits.length; k++){
-    let segs = data[kits[k]] || [];
-    // hide all segments which have divs - we may filter them out and they would remain.
-    for (let i = 0; i < segs.length; i++){
-      if (segdivs[segs[i].id]){
-        segdivs[segs[i].id].style.display = 'none';
-      }
+  let segs = data['all'] || [];
+  // hide all segments which have divs - we may filter them out and they would remain.
+  for (let i = 0; i < segs.length; i++){
+    if (segdivs[segs[i].id]){
+      segdivs[segs[i].id].style.display = 'none';
     }
   }
 
@@ -1593,7 +1740,11 @@ function updateDivDisplay() {
       let newsegs = [];
       for (let s = 0; s < chrom.segments.length; s++){
         let seg = chrom.segments[s];
-        if (seg.highlight){
+        let highlight = true; //kits[seg.kitTo].highlight; // default to kit highlight
+        if (seg.mark === 'always') highlight = true;
+        if (seg.mark === 'never') highlight = false;
+
+        if (highlight){
           newsegs.push(seg);
         }
       }
@@ -1613,6 +1764,7 @@ function updateDivDisplay() {
       if (!newdiv){
         newdiv = document.createElement('DIV');
         chrom.div = newdiv;
+        newdiv.classList.add('chrom');
         isnew = true;
       }
       newdiv.id = `chrdiv${chrom.chr}_${chrom.side}`;
@@ -1773,6 +1925,8 @@ async function loadJson(fileitem, ext, cb) {
   }
 }
 
+//////////////////////////////////////////////////////////////
+// deal with .gz json files
 // compress string to arraybuffer
 function compress(string) {
   const byteArray = new TextEncoder().encode(string);
@@ -1793,6 +1947,8 @@ function decompress(byteArray) {
     return new TextDecoder().decode(arrayBuffer);
   });
 }
+//////////////////////////////////////////////////////////////
+
 
 function processJson(downloaddata){
   matchesMeta = downloaddata.matchesMeta || {};
