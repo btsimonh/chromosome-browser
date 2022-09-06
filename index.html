@@ -118,14 +118,25 @@ div a:link, div a:visited {
 	font-weight: bold;
 }
 
+.container {
+  height:70vh;
+}
+
+.hastree::before {
+  content: "*";
+  position: absolute;
+  font-size: 50%;
+  color: white;
+}
+
 /* context menu */
 
 .context-menu {
   display: none;
-  position: absolute;
+  position: relative;
   z-index: 10;
-  padding: 12px 0;
-  width: auto;
+  padding: 2px 0;
+  /*width: fit-content;*/
   background-color: #fff;
   border: solid 1px #dfdfdf;
   box-shadow: 1px 1px 2px #cfcfcf;
@@ -334,11 +345,11 @@ Copyright (c) 2018 yulvil, 2022 btsimonh <a href="https://github.com/btsimonh/ch
 </nav>
 </form>
 
-<div id="divchrbrowser" style="position:relative;">
-
-</div>
-
+<div class="container">
+  <div id="divchrbrowser" style="position:relative;">
+  </div>
   <nav id="context-menu" class="context-menu">
+    <h2 id="fullname"></h2><br/>
     <span>Highlight:</span>
       <button onclick="menuClick(event, 0)">All kit matches</button>
       <button onclick="menuClick(event, 11)">All seg matches</button>
@@ -354,9 +365,10 @@ Copyright (c) 2018 yulvil, 2022 btsimonh <a href="https://github.com/btsimonh/ch
     <button onclick="menuClick(event, 2)"> Download Interesting Matches</button><br/>
     <button onclick="menuClick(event, 3)"> View Tree <span id="treecount">0</span></button><br/>
     <button onclick="menuClick(event, 4)"> Review Match</button><br/>
+    <button onclick="menuClick(event, 13)"> Ancestry member search</button><br/>
+    
   </nav>
-
-  
+</div>  
     <script>
 "use strict;";
 
@@ -589,6 +601,9 @@ function contextMenu(e) {
         treecountel.innerHTML = 'unknown';
     }
     
+    let nameel = document.getElementById('fullname');
+    nameel.innerHTML = kits[kit].name;
+    
     toggleMenuOn();
     positionMenu(e);
   } else {
@@ -636,14 +651,19 @@ function contextMenu(e) {
 //    if ( (windowWidth - clickCoordsX) < menuWidth ) {
 //      menu.style.left = windowWidth - menuWidth + "px";
 //    } else {
-      menu.style.left = clickCoordsX + "px";
+//      menu.style.left = clickCoordsX + "px";
 //    }
 
 //    if ( (windowHeight - clickCoordsY) < menuHeight ) {
 //      menu.style.top = windowHeight - menuHeight + "px";
 //    } else {
-      menu.style.top = clickCoordsY + "px";
+//      menu.style.top = clickCoordsY + "px";
 //    }
+
+    menu.style.top = "5%";
+    menu.style.left = "5%";
+    menu.style.width = "90%";
+    menu.style.height = "90%";
   }
 
 function menuClick(ev, item){
@@ -710,6 +730,9 @@ function menuClick(ev, item){
     } break;
     case 12:{
       highlightAllMatchingSeg(segid, false);
+    } break;
+    case 13:{
+      ancestryMemberSearch(kits[kit].name);
     } break;
     
   }
@@ -1298,37 +1321,18 @@ var width = getWidth() * 0.8;
 
 var tooltipDiv = document.getElementById('tooltip');
 
-function mouseover(ev, d) {
-  let name = "";
-  let fromName = "";
-  if (kits[d.kitTo].name !== d.kitTo) {
-    name = " name " + kits[d.kitTo].name;
-  }
-  if (kits[d.kitFrom].name !== d.kitFrom) {
-    fromName = " name " + kits[d.kitFrom].name;
-  }
-  tooltipDiv.style.opacity = 1.0;
-  
-  let str = 
-    d.start.toLocaleString() + " to " + d.end.toLocaleString() + "<br>";
-    
-  if (d.startRSID){
-    str += 'RSID: '+ d.startRSID + " to " + d.endRSID + "<br>";
-  }
-    
-  str += "kitTo " + d.kitTo + name + "<br/>"+
-    "kitFrom " + d.kitFrom + fromName + "<br/>"+
-    "This segment " + d.cm.toFixed(1) + " cM";
-    
-  tooltipDiv.innerHTML = str;
-  tooltipDiv.style.left = (ev.pageX + 40) + "px";
-  tooltipDiv.style.top = (ev.pageY - 28) + "px";
-  console.log(d.start + " to " + d.end + " kit [" + d.kitTo + "] name " + d.name);
+function ancestryMemberSearch(name){
+  var a = document.createElement('a');
+  a.href = `https://www.ancestry.co.uk/community/membersearch?q=${name.split(' ').join('+')}&page=1`;
+  a.target = '_blank';
+  a.click();
 }
+
 
 function mouseover2(ev) {
   let name = "";
   let fromName = "";
+  let str = '';
   
   let d;
   for (let i = 0; i < data['all'].length; i++){
@@ -1344,14 +1348,21 @@ function mouseover2(ev) {
   }
   
   if (kits[d.kitTo].name !== d.kitTo) {
-    name = " name " + kits[d.kitTo].name;
+    name = kits[d.kitTo].name;
   }
   if (kits[d.kitFrom].name !== d.kitFrom) {
     fromName = " name " + kits[d.kitFrom].name;
   }
   tooltipDiv.style.opacity = 1.0;
+
+  str += `<b>${name}</b><br/>`;
   
-  let str = 
+  if (matchesMeta[d.kitTo] && matchesMeta[d.kitTo]['Number of individuals in the tree']){
+    let url = matchesMeta[d.kitTo]['View tree'];
+    str += `<a href="${url}" target="_blank">Tree of ${matchesMeta[d.kitTo]['Number of individuals in the tree']}</a><br/>`;
+  }  
+  
+  str += 
     d.start.toLocaleString() + " to " + d.end.toLocaleString() + "<br>";
     
   if (d.startRSID){
@@ -1642,6 +1653,13 @@ function addSegments(div, chrom, chrsize) {
     
     newdiv.style.opacity = opacity;
     newdiv.style.display = 'block';
+    
+    if (matchesMeta[d.kitTo] && matchesMeta[d.kitTo]['Number of individuals in the tree']){
+      newdiv.classList.add('hastree');
+      newdiv.dataset['treecount'] = `(${matchesMeta[d.kitTo]['Number of individuals in the tree']})`;
+    } else {
+      newdiv.classList.add('notree');
+    }
     
     if (isnew) {
       newdiv.style.margin = '';

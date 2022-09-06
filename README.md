@@ -37,6 +37,12 @@ These 'interesting matches' may be downloaded from a right click.  The 'containe
 ### Updates:
 
 ```
+2022-09-06:
+Added right click to Ancestry member search.
+Added white start for segments who have myHeritage trees.
+Add tree count to mouseover.
+modify context menu presentation
+
 2022-09-05:
 Changed highlighting.  Now all higlights are done via segments, and there are more right lcick options.
 Highlighting is retained in downloaded .gz file.
