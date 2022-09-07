@@ -7,7 +7,8 @@
     <script src="https://d3js.org/d3.v4.min.js"></script>
     <style>
 div.tooltip {
-    position: absolute;
+    display:none;
+    position: fixed;
     text-align: left;
     padding: 10px;
     font: 12px sans-serif;
@@ -183,192 +184,218 @@ div a:link, div a:visited {
   )
 }
 
+.fillbrowser {
+  height: 100vh;
+  width: 100vw;
+}
+
+.headermenu {
+  height: 50px;
+}
+
+.fillremainder {
+  width:100%;
+  overflow: scroll;
+  height: calc(100vh - 50px);
+}
+
+.overlay {
+  position: absolute;
+  left:5%;
+  width:90%;
+  z-index: 100;
+}
+
     </style>
   </head>
   <body>
 
-<header>
-</header>
+    <header>
+    </header>
 
-<form id="myform" onsubmit="return false;">
+    <div class="fillbrowser">
+      <div class="tooltip" id="tooltip"></div>
+      <div class="headermenu">
+        <nav>
+          <ul>
+            <li><a href="#" onclick="showdiv('none');">Yulvil Chromosome Browser</a></li>
+            <li><a href="#Data" onclick="showdiv('data');">Data</a></li>
+            <li><a href="#Filters" onclick="showdiv('filters');">Filters</a></li>
+            <li><a href="#Display" onclick="showdiv('display');">Display</a></li>
+            <li style="float: right"><a href="#" onclick="showdiv('about');">About</a></li>
+          </ul>
+        </nav>
+      </div>
+      <div class="overlay">
+        <form id="myform" onsubmit="return false;">
+            <div class="submenu">
+              <div class="inputs" id="none">
+                <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
+              </div>
+              <div class="inputs" id="data">
+                <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
+                <div style="width: 100%; overflow: hidden;">
 
-<nav>
-<ul>
-  <li><a href="#" onclick="showdiv('none');">Yulvil Chromosome Browser</a></li>
-  <li><a href="#Data" onclick="showdiv('data');">Data</a></li>
-  <li><a href="#Filters" onclick="showdiv('filters');">Filters</a></li>
-  <li><a href="#Display" onclick="showdiv('display');">Display</a></li>
-  <li style="float: right"><a href="#" onclick="showdiv('about');">About</a></li>
-</ul>
+                <div class="drop_zone" ondrop="dropHandler(event);" ondragover="dragOverHandler(event);">
+                  <p>&#128193; Drag one or more files here</p>
+                </div>
 
-<div class="submenu">
-<div class="inputs" id="none">
-<a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
-</div>
-<div class="inputs" id="data">
-<a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
-<div style="width: 100%; overflow: hidden;">
+                <div class="drop_zone" ondrop="dropHandler(event);" ondragover="dragOverHandler(event);">
+                  <p>
+                    <label class="custom-file-upload">
+                      <input type="file" multiple="multiple" accept=".csv, .txt" onchange="onFileSelect(this);" style="display: none;"/>
+                      &#128193; Select files from your computer
+                    </label>
+                  </p>
+                </div>
 
-<div class="drop_zone" ondrop="dropHandler(event);" ondragover="dragOverHandler(event);">
-  <p>&#128193; Drag one or more files here</p>
-</div>
-
-<div class="drop_zone" ondrop="dropHandler(event);" ondragover="dragOverHandler(event);">
-<p>
-  <label class="custom-file-upload">
-    <input type="file" multiple="multiple" accept=".csv, .txt" onchange="onFileSelect(this);" style="display: none;"/>
-    &#128193; Select files from your computer
-  </label>
-</p>
-</div>
-
-<div class="drop_zone" ondrop="dropHandler2(event);" ondragover="dragOverHandler(event);">
-  <p>&#128193; Select myHeritage matches list file from your computer</p>
-</div>
-<div class="drop_zone">
-  <button onclick="downloadjson();">Download Data</button>
-</div>
+                <div class="drop_zone" ondrop="dropHandler2(event);" ondragover="dragOverHandler(event);">
+                  <p>&#128193; Select myHeritage matches list file from your computer</p>
+                </div>
+                <div class="drop_zone">
+                  <button onclick="downloadjson();">Download Data</button>
+                </div>
 
 
-<div style="float: left;">
-  <p>or
-  <input type="button" name="addCsv" id="addCsv" value="Add CSV data" onclick="addCsvInput();" />
-  </p>
-</div>
-</div>
+                <div style="float: left;">
+                  <p>or
+                  <input type="button" name="addCsv" id="addCsv" value="Add CSV data" onclick="addCsvInput();" />
+                  </p>
+                </div>
+              </div>
 
-<div id="csvdatadiv">
-  <div id="csvdiv0">
-    <br/><br/>
-    <label for="csvdata0">CSV Data</label>
-    <br/>
-    <textarea name="csvdata0" id="csvdata0" class="csvdata" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onChange="loadData();updateAll();"></textarea>
-  </div>
-</div>
+              <div id="csvdatadiv">
+                <div id="csvdiv0">
+                  <br/><br/>
+                  <label for="csvdata0">CSV Data</label>
+                  <br/>
+                  <textarea name="csvdata0" id="csvdata0" class="csvdata" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onChange="loadData();updateAll();"></textarea>
+                </div>
+              </div>
 
-</div>
-<div class="inputs" id="filters">
-<a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
-<label for="minCm">Centimorgan size</label>
-from <input id="minCm" type="number" value="10" onChange="updateCm();" onInput="updateCm();">
-to <input id="maxCm" type="number" value="" onChange="updateCm();" onInput="updateCm();">
+            </div>
+            <div class="inputs" id="filters">
+              <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
+              <label for="minCm">Centimorgan size</label>
+              from <input id="minCm" type="number" value="10" onChange="updateCm();" onInput="updateCm();">
+              to <input id="maxCm" type="number" value="" onChange="updateCm();" onInput="updateCm();">
 
-<br/><br/>
-<label for="includekits">Only show these kits (one per line)</label>
-<br/>
-<textarea name="includekits" id="includekits" onChange="updateAll();"></textarea>
+              <br/><br/>
+              <label for="includekits">Only show these kits (one per line)</label>
+              <br/>
+              <textarea name="includekits" id="includekits" onChange="updateAll();"></textarea>
 
-<br/><br/>
-<label for="excludekits">Exclude these kits (one per line)</label>
-<br/>
-<textarea name="excludekits" id="excludekits" onChange="updateAll();"></textarea>
-</div>
-<div class="inputs" id="display">
-<a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
-<label for="chrview">Chromosome</label>
-<select id="chrview" onChange="updateAll()">
-  <option value="0">All</option>
-  <option value="1">1</option>
-  <option value="2">2</option>
-  <option value="3">3</option>
-  <option value="4">4</option>
-  <option value="5">5</option>
-  <option value="6">6</option>
-  <option value="7">7</option>
-  <option value="8">8</option>
-  <option value="9">9</option>
-  <option value="10">10</option>
-  <option value="11">11</option>
-  <option value="12">12</option>
-  <option value="13">13</option>
-  <option value="14">14</option>
-  <option value="15">15</option>
-  <option value="16">16</option>
-  <option value="17">17</option>
-  <option value="18">18</option>
-  <option value="19">19</option>
-  <option value="20">20</option>
-  <option value="21">21</option>
-  <option value="22">22</option>
-  <option value="23">X</option>
-</select>
+              <br/><br/>
+              <label for="excludekits">Exclude these kits (one per line)</label>
+              <br/>
+              <textarea name="excludekits" id="excludekits" onChange="updateAll();"></textarea>
+            </div>
+            <div class="inputs" id="display">
+              <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
+              <label for="chrview">Chromosome</label>
+              <select id="chrview" onChange="updateAll()">
+                <option value="0">All</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+                <option value="13">13</option>
+                <option value="14">14</option>
+                <option value="15">15</option>
+                <option value="16">16</option>
+                <option value="17">17</option>
+                <option value="18">18</option>
+                <option value="19">19</option>
+                <option value="20">20</option>
+                <option value="21">21</option>
+                <option value="22">22</option>
+                <option value="23">X</option>
+              </select>
 
-<br/><br/>
-<label for="chrsize">Chromosome Size</label>
-<select id="chrsize" onchange="updatePosn();">
-  <option value="screenwidth" selected="selected">screen width</option>
-  <option value="proportional">proportional</option>
-</select>
+              <br/><br/>
+              <label for="chrsize">Chromosome Size</label>
+              <select id="chrsize" onchange="updatePosn();">
+                <option value="screenwidth" selected="selected">screen width</option>
+                <option value="proportional">proportional</option>
+              </select>
 
-<label for="nametype">Name type</label>
-<select id="nametype" onchange="updatePosn();">
-  <option value="name" selected="selected">name</option>
-  <option value="kit">kit id</option>
-  <option value="index">index</option>
-</select>
+              <label for="nametype">Name type</label>
+              <select id="nametype" onchange="updatePosn();">
+                <option value="name" selected="selected">name</option>
+                <option value="kit">kit id</option>
+                <option value="index">index</option>
+              </select>
 
-<br/><br/>
-<label for="viewtype">View Type</label>
-<select id="viewtype" onchange="updateViewType();">
-  <option value="compact" selected="selected">Compact</option>
-  <option value="compactreverse">Compact (reverse)</option>
-  <option value="segment">By Segment</option>
-  <option value="segmentreverse">By Segment (reverse)</option>
-<!--
-  <option value="kitsize">By Kit Size</option>
--->
-</select>
-<br/><br/>
-<label for="segmentHeight">Segment Height</label>
-<input id="segmentHeight" type="number" value="20" onChange="updatePosn();">
+              <br/><br/>
+              <label for="viewtype">View Type</label>
+              <select id="viewtype" onchange="updateViewType();">
+                <option value="compact" selected="selected">Compact</option>
+                <option value="compactreverse">Compact (reverse)</option>
+                <option value="segment">By Segment</option>
+                <option value="segmentreverse">By Segment (reverse)</option>
+              <!--
+                <option value="kitsize">By Kit Size</option>
+              -->
+              </select>
+              <br/><br/>
+              <label for="segmentHeight">Segment Height</label>
+              <input id="segmentHeight" type="number" value="20" onChange="updatePosn();">
 
-<br/><br/>
-<label for="fromkit">Active Kit</label>
-<select id="fromkit" onchange="updateAll();">
-</select>
+              <br/><br/>
+              <label for="fromkit">Active Kit</label>
+              <select id="fromkit" onchange="updateAll();">
+              </select>
 
-<br/><br/>
-<label for="hideuncoloured">Show Segments</label>
-<select id="hideuncoloured" onchange="updateHidden();">
-  <option value="all" selected="selected">All</option>
-  <option value="coloured">Solid Colour</option>
-</select>
+              <br/><br/>
+              <label for="hideuncoloured">Show Segments</label>
+              <select id="hideuncoloured" onchange="updateHidden();">
+                <option value="all" selected="selected">All</option>
+                <option value="coloured">Solid Colour</option>
+              </select>
 
-</div>
-<div class="inputs" id="about">
-Copyright (c) 2018 yulvil, 2022 btsimonh <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a> and <a href="https://github.com/btsimonh/chromosome-browser" target="_blank">Source Code</a>
-<div>Page views: <span id="visits">...</span></div>
-</div>
-</div>
-<div class="tooltip" id="tooltip" style="opacity=0;"></div>
-
-</nav>
-</form>
-
-<div class="container">
-  <div id="divchrbrowser" style="position:relative;">
-  </div> 
-  <nav id="context-menu" class="context-menu">
-    <h2 id="fullname"></h2><br/>
-    <span>Highlight:</span>
-      <button onclick="menuClick(event, 0)">All kit matches</button>
-      <button onclick="menuClick(event, 11)">All seg matches</button>
-      <button onclick="menuClick(event, 9)">All</button>
-      <button onclick="menuClick(event, 7)">All kit</button>
-    <br/>
-    <span>un-Highlight:</span>
-      <button onclick="menuClick(event, 1)">All kit matches</button>
-      <button onclick="menuClick(event, 12)">All seg matches</button>
-      <button onclick="menuClick(event, 10)">All</button>
-      <button onclick="menuClick(event, 8)">All kit</button>
-    <br/>
-    <button onclick="menuClick(event, 2)"> Download Interesting Matches</button><br/>
-    <button onclick="menuClick(event, 3)"> View Tree <span id="treecount">0</span></button><br/>
-    <button onclick="menuClick(event, 4)"> Review Match</button><br/>
-    <button onclick="menuClick(event, 13)"> Ancestry member search</button><br/>
-    
-  </nav>
-</div>  
+            </div>
+            <div class="inputs" id="about">
+              Copyright (c) 2018 yulvil, 2022 btsimonh <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a> and <a href="https://github.com/btsimonh/chromosome-browser" target="_blank">Source Code</a>
+              <div>Page views: <span id="visits">...</span></div>
+              </div>
+            </div>
+          </nav>
+        </form>
+      </div>
+      <div class="fillremainder container">
+        <div id="divchrbrowser" style="position:relative;">
+        </div>
+        <nav id="context-menu" class="context-menu">
+          <h2 id="fullname"></h2><br/>
+          <span>Highlight:</span>
+            <button onclick="menuClick(event, 0)">All kit matches</button>
+            <button onclick="menuClick(event, 11)">All seg matches</button>
+            <button onclick="menuClick(event, 9)">All</button>
+            <button onclick="menuClick(event, 7)">All kit</button>
+            <button onclick="menuClick(event, 20)">This Seg</button>
+          <br/>
+          <span>un-Highlight:</span>
+            <button onclick="menuClick(event, 1)">All kit matches</button>
+            <button onclick="menuClick(event, 12)">All seg matches</button>
+            <button onclick="menuClick(event, 10)">All</button>
+            <button onclick="menuClick(event, 8)">All kit</button>
+            <button onclick="menuClick(event, 21)">This Seg</button>
+          <br/>
+          <!--<button onclick="menuClick(event, 2)"> Download Interesting Matches</button><br/>-->
+          <button onclick="menuClick(event, 3)"> View Tree <span id="treecount">0</span></button><br/>
+          <button onclick="menuClick(event, 4)"> Review Match</button><br/>
+          <button onclick="menuClick(event, 13)"> Ancestry member search</button><br/>
+        </nav>
+      </div>  
+    </div>
     <script>
 "use strict;";
 
@@ -672,6 +699,7 @@ function menuClick(ev, item){
 
   let segid = menuSegid;
   let kit = getKitFromSeg(segid);
+  let seg = segids[segid];
   if (!kit) return;
 
   switch(item){
@@ -735,6 +763,20 @@ function menuClick(ev, item){
     case 13:{
       ancestryMemberSearch(kits[kit].name);
     } break;
+    
+    // segment
+    case 20:{
+      if (seg){
+        seg.mark = "always";
+      }
+      break;
+    }
+    case 21:{
+      if (seg){
+        seg.mark = "never";
+      }
+      break;
+    }
     
   }
   setHighlight();
@@ -1352,28 +1394,32 @@ function mouseover2(ev) {
     name = kits[d.kitTo].name;
   }
   if (kits[d.kitFrom].name !== d.kitFrom) {
-    fromName = " name " + kits[d.kitFrom].name;
+    fromName = kits[d.kitFrom].name;
   }
-  tooltipDiv.style.opacity = 1.0;
+  tooltipDiv.style.display = 'block';
 
-  str += `<b>${name}</b><br/>`;
+  str += `<b>${name}:${fromName}</b><br/>`;
   
   if (matchesMeta[d.kitTo] && matchesMeta[d.kitTo]['Number of individuals in the tree']){
     let url = matchesMeta[d.kitTo]['View tree'];
     str += `<a href="${url}" target="_blank">Tree of ${matchesMeta[d.kitTo]['Number of individuals in the tree']}</a><br/>`;
   }  
   
-  str += 
+  str += `Chr <b>${d.chr}:</b>`+
     d.start.toLocaleString() + " to " + d.end.toLocaleString() + "<br>";
     
   if (d.startRSID){
     str += 'RSID: '+ d.startRSID + " to " + d.endRSID + "<br>";
   }
     
+  if (name) name = ' name '+name;
+  if (fromName) fromName = ' name '+fromName;
   str += "kitTo " + d.kitTo + name + "<br/>"+
     "kitFrom " + d.kitFrom + fromName + "<br/>"+
     "This segment " + d.cm.toFixed(1) + " cM";
 
+/*    
+    
   if (startRSIDs[d.startRSID]){
     let sRSIDstr = '';
     for (let i = 0; i < startRSIDs[d.startRSID].length; i++){
@@ -1388,17 +1434,39 @@ function mouseover2(ev) {
     }
     str += sRSIDstr;
   }
-  
-
+*/
     
   tooltipDiv.innerHTML = str;
-  tooltipDiv.style.left = (ev.pageX + 40) + "px";
-  tooltipDiv.style.top = (ev.pageY - 28) + "px";
+  //tooltipDiv.style.left = (ev.pageX + 40) + "px";
+  //tooltipDiv.style.top = (ev.pageY - 28) + "px";
+  
+  //let clickCoords = getPosition(ev);
+  let clickCoordsX = (ev.pageX + 40);
+  let clickCoordsY = (ev.pageY - 28);
+
+  let menuWidth = tooltipDiv.offsetWidth + 4;
+  let menuHeight = tooltipDiv.offsetHeight + 4;
+
+  windowWidth = window.innerWidth;
+  windowHeight = window.innerHeight;
+
+  if ( (windowWidth - clickCoordsX) < menuWidth ) {
+    tooltipDiv.style.left = windowWidth - menuWidth + "px";
+  } else {
+    tooltipDiv.style.left = clickCoordsX + "px";
+  }
+
+  if ( (windowHeight - clickCoordsY) < menuHeight ) {
+    tooltipDiv.style.top = windowHeight - menuHeight + "px";
+  } else {
+    tooltipDiv.style.top = clickCoordsY + "px";
+  }
+  
   console.log(d.start + " to " + d.end + " kit [" + d.kitTo + "] name " + d.name);
 }
 
 function mouseout() {
-  tooltipDiv.style.opacity = 0;
+  tooltipDiv.style.display = 'none';
 
 }
 
@@ -1670,6 +1738,7 @@ function addSegments(div, chrom, chrsize) {
       newdiv.innerHTML = kits[d.kitTo].name || d.kitTo;
       newdiv.style.outline =  '1px solid '+kits[d.kitFrom].outlineColour;
       newdiv.style.position = 'absolute';
+      if (!kits[d.kitTo].color) kits[d.kitTo].color = cat20(d.kitTo);
       newdiv.style.backgroundColor = kits[d.kitTo].color;
 
       newdiv.addEventListener('mouseover', mouseover2);//(event) => {mouseover(event, d);});
@@ -1791,7 +1860,7 @@ function updateDivDisplay() {
       newdiv.style.height = 1 + chrom.numRows * (segmentHeight + 1) + 'px'
       newdiv.style.top = y + 'px';
       newdiv.style.left = 20 + 'px';
-      newdiv.style.position = 'absolute';
+      //newdiv.style.position = 'absolute';
       newdiv.style.border = '2px solid black';
       newdiv.style.margin = '';
       newdiv.style.padding = '';
@@ -1800,6 +1869,7 @@ function updateDivDisplay() {
       newdiv.addEventListener('contextmenu', contextMenu);
 //      newdiv.ondblclick="dblClickSeg(event);";
   //    newdiv.oncontextmenu="contextMenu(event);";
+      newdiv.style.transform = "translate(20px, 0px)"
 
       // only display if not filtered by chromosome
       if (chrview && (chrom.chr != chrview)){
@@ -1816,6 +1886,7 @@ function updateDivDisplay() {
       label.style.left = -20 + 'px';
       label.innerHTML = (chrom.chr == 23) ? 'X' : `${chrom.chr}`
       newdiv.append(label);
+      
       rootDiv.append(newdiv);
       
       // create segments 
