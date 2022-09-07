@@ -347,7 +347,7 @@ Copyright (c) 2018 yulvil, 2022 btsimonh <a href="https://github.com/btsimonh/ch
 
 <div class="container">
   <div id="divchrbrowser" style="position:relative;">
-  </div>
+  </div> 
   <nav id="context-menu" class="context-menu">
     <h2 id="fullname"></h2><br/>
     <span>Highlight:</span>
@@ -659,11 +659,12 @@ function contextMenu(e) {
 //    } else {
 //      menu.style.top = clickCoordsY + "px";
 //    }
-
-    menu.style.top = "5%";
-    menu.style.left = "5%";
-    menu.style.width = "90%";
-    menu.style.height = "90%";
+    menu.style.position = 'fixed';
+    menu.style.zIndex = 2000;
+    menu.style.top = windowHeight*0.05+'px';
+    menu.style.left = windowWidth*0.05+'px';
+    menu.style.width = windowWidth*0.9+'px';
+    menu.style.height = windowHeight*0.9+'px';
   }
 
 function menuClick(ev, item){
@@ -1807,14 +1808,14 @@ function updateDivDisplay() {
         y += 1 + chrom.numRows * (segmentHeight + 1);
         newdiv.style.display = 'block';
       }
-      
-      if (isnew){
-        let label = document.createElement('DIV');
-        label.style.position = 'absolute';
-        label.style.left = -20 + 'px';
-        label.innerHTML = (chrom.chr == 23) ? 'X' : `${chrom.chr}`
-        newdiv.append(label);
-      }
+
+      // the div is always empty when it get here, so
+      // add the label.
+      let label = document.createElement('DIV');
+      label.style.position = 'absolute';
+      label.style.left = -20 + 'px';
+      label.innerHTML = (chrom.chr == 23) ? 'X' : `${chrom.chr}`
+      newdiv.append(label);
       rootDiv.append(newdiv);
       
       // create segments 
