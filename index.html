@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Yulvil/btsimonh Chromosome Browser</title>
     <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsstore@1.5.2"></script>
     <style>
 div.tooltip {
     display:none;
@@ -27,6 +28,14 @@ textarea {
 .drop_zone {
 	border: 2px dashed #000;
 	width:  250px;
+	height: 100px;
+	float: left;
+	text-align: center;
+	margin: 0px 20px 0px 0px;
+}
+.filenames {
+	border: 2px dashed #000;
+	width:  450px;
 	height: 100px;
 	float: left;
 	text-align: center;
@@ -79,8 +88,20 @@ nav li a {
 	text-decoration: none;
 }
 
+nav li span {
+	display: block;
+	color: white;
+	text-align: center;
+	padding: 14px 16px;
+	text-decoration: none;
+}
+
 /* Change the link color to #111 (black) on hover */
 nav li a:hover {
+	background-color: #111;
+}
+
+nav li span:hover {
 	background-color: #111;
 }
 
@@ -129,6 +150,21 @@ div a:link, div a:visited {
   font-size: 50%;
   color: white;
 }
+
+.wait {
+  display: none;
+  position: fixed;
+  top:5vh;
+  height:90vh;
+  left:5vw;
+  width:90vw;
+  z-index: 1200;
+  padding: 2px 0;
+  background-color: #fff;
+  border: solid 1px #dfdfdf;
+  box-shadow: 1px 1px 2px #cfcfcf;
+}
+
 
 /* context menu */
 
@@ -218,11 +254,13 @@ div a:link, div a:visited {
       <div class="headermenu">
         <nav>
           <ul>
-            <li><a href="#" onclick="showdiv('none');">Yulvil Chromosome Browser</a></li>
-            <li><a href="#Data" onclick="showdiv('data');">Data</a></li>
-            <li><a href="#Filters" onclick="showdiv('filters');">Filters</a></li>
-            <li><a href="#Display" onclick="showdiv('display');">Display</a></li>
-            <li style="float: right"><a href="#" onclick="showdiv('about');">About</a></li>
+            <li><a href="#" onclick="chrombrowser.showdiv('none');">Yulvil Chromosome Browser</a></li>
+            <li><a href="#Data" onclick="chrombrowser.showdiv('data');">Data</a></li>
+            <li><a href="#Filters" onclick="chrombrowser.showdiv('filters');">Filters</a></li>
+            <li><a href="#Display" onclick="chrombrowser.showdiv('display');">Display</a></li>
+            <li><span onclick="chrombrowser.saveToDbjson();" id="filename">Save</span></li>
+            <li><span onclick="chrombrowser.saveToDbjson(true);" id="filename">SaveAs</span></li>
+            <li style="float: right"><a href="#" onclick="chrombrowser.showdiv('about');">About</a></li>
           </ul>
         </nav>
       </div>
@@ -236,64 +274,71 @@ div a:link, div a:visited {
                 <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
                 <div style="width: 100%; overflow: hidden;">
 
-                <div class="drop_zone" ondrop="dropHandler(event);" ondragover="dragOverHandler(event);">
+                <div class="drop_zone" ondrop="chrombrowser.dropHandler(event);" ondragover="chrombrowser.dragOverHandler(event);">
                   <p>&#128193; Drag one or more files here</p>
                 </div>
 
-                <div class="drop_zone" ondrop="dropHandler(event);" ondragover="dragOverHandler(event);">
+<!--                <div class="drop_zone" ondrop="chrombrowser.dropHandler(event);" ondragover="chrombrowser.dragOverHandler(event);">
                   <p>
                     <label class="custom-file-upload">
-                      <input type="file" multiple="multiple" accept=".csv, .txt" onchange="onFileSelect(this);" style="display: none;"/>
+                      <input type="file" multiple="multiple" accept=".csv, .txt" onchange="chrombrowser.onFileSelect(this);" style="display: none;"/>
                       &#128193; Select files from your computer
                     </label>
                   </p>
-                </div>
+                </div> -->
 
-                <div class="drop_zone" ondrop="dropHandler2(event);" ondragover="dragOverHandler(event);">
+                <div class="drop_zone" ondrop="chrombrowser.dropHandler2(event);" ondragover="chrombrowser.dragOverHandler(event);">
                   <p>&#128193; Select myHeritage matches list file from your computer</p>
                 </div>
-                <div class="drop_zone">
+<!--                <div class="drop_zone">
                   <button onclick="downloadjson();">Download Data</button>
+                </div>-->
+                <div class="filenames" id="filenames">
                 </div>
 
-
-                <div style="float: left;">
+<!--                <div style="float: left;">
                   <p>or
                   <input type="button" name="addCsv" id="addCsv" value="Add CSV data" onclick="addCsvInput();" />
                   </p>
+                </div>-->
+                <div>
+                  <pre id="pre"></pre>
+                  <button id="button">test</button>
+                  <button onclick="chrombrowser.getExistingFile();">Load Last File</button>
                 </div>
+                  
               </div>
 
-              <div id="csvdatadiv">
+<!--              <div id="csvdatadiv">
                 <div id="csvdiv0">
                   <br/><br/>
                   <label for="csvdata0">CSV Data</label>
                   <br/>
                   <textarea name="csvdata0" id="csvdata0" class="csvdata" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onChange="loadData();updateAll();"></textarea>
                 </div>
-              </div>
+              </div>-->
 
             </div>
             <div class="inputs" id="filters">
               <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
               <label for="minCm">Centimorgan size</label>
-              from <input id="minCm" type="number" value="10" onChange="updateCm();" onInput="updateCm();">
-              to <input id="maxCm" type="number" value="" onChange="updateCm();" onInput="updateCm();">
+              from <input id="minCm" type="number" value="10" onChange="chrombrowser.updateCm();" onInput="chrombrowser.updateCm();">
+              to <input id="maxCm" type="number" value="" onChange="chrombrowser.updateCm();" onInput="chrombrowser.updateCm();">
 
               <br/><br/>
               <label for="includekits">Only show these kits (one per line)</label>
               <br/>
-              <textarea name="includekits" id="includekits" onChange="updateAll();"></textarea>
+              <textarea name="includekits" id="includekits" onChange="chrombrowser.updateAll();"></textarea>
 
               <br/><br/>
               <label for="excludekits">Exclude these kits (one per line)</label>
               <br/>
-              <textarea name="excludekits" id="excludekits" onChange="updateAll();"></textarea>
+              <textarea name="excludekits" id="excludekits" onChange="chrombrowser.updateAll();"></textarea>
             </div>
             <div class="inputs" id="display">
               <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
               <label for="chrview">Chromosome</label>
-              <select id="chrview" onChange="updateAll()">
+              <select id="chrview" onChange="chrombrowser.updateAll()">
                 <option value="0">All</option>
                 <option value="1">1</option>
                 <option value="2">2</option>
@@ -322,13 +367,13 @@ div a:link, div a:visited {
 
               <br/><br/>
               <label for="chrsize">Chromosome Size</label>
-              <select id="chrsize" onchange="updatePosn();">
+              <select id="chrsize" onchange="chrombrowser.updatePosn();">
                 <option value="screenwidth" selected="selected">screen width</option>
                 <option value="proportional">proportional</option>
               </select>
 
               <label for="nametype">Name type</label>
-              <select id="nametype" onchange="updatePosn();">
+              <select id="nametype" onchange="chrombrowser.updatePosn();">
                 <option value="name" selected="selected">name</option>
                 <option value="kit">kit id</option>
                 <option value="index">index</option>
@@ -336,7 +381,7 @@ div a:link, div a:visited {
 
               <br/><br/>
               <label for="viewtype">View Type</label>
-              <select id="viewtype" onchange="updateViewType();">
+              <select id="viewtype" onchange="chrombrowser.updateViewType();">
                 <option value="compact" selected="selected">Compact</option>
                 <option value="compactreverse">Compact (reverse)</option>
                 <option value="segment">By Segment</option>
@@ -347,16 +392,16 @@ div a:link, div a:visited {
               </select>
               <br/><br/>
               <label for="segmentHeight">Segment Height</label>
-              <input id="segmentHeight" type="number" value="20" onChange="updatePosn();">
+              <input id="segmentHeight" type="number" value="20" onChange="chrombrowser.updatePosn();">
 
               <br/><br/>
               <label for="fromkit">Active Kit</label>
-              <select id="fromkit" onchange="updateAll();">
+              <select id="fromkit" onchange="chrombrowser.updateAll();">
               </select>
 
               <br/><br/>
               <label for="hideuncoloured">Show Segments</label>
-              <select id="hideuncoloured" onchange="updateHidden();">
+              <select id="hideuncoloured" onchange="chrombrowser.updateHidden();">
                 <option value="all" selected="selected">All</option>
                 <option value="coloured">Solid Colour</option>
               </select>
@@ -376,27 +421,28 @@ div a:link, div a:visited {
         <nav id="context-menu" class="context-menu">
           <h2 id="fullname"></h2><br/>
           <span>Highlight:</span>
-            <button onclick="menuClick(event, 0)">All kit matches</button>
-            <button onclick="menuClick(event, 11)">All seg matches</button>
-            <button onclick="menuClick(event, 9)">All</button>
-            <button onclick="menuClick(event, 7)">All kit</button>
-            <button onclick="menuClick(event, 20)">This Seg</button>
+            <button onclick="chrombrowser.menuClick(event, 0)">All kit matches</button>
+            <button onclick="chrombrowser.menuClick(event, 11)">All seg matches</button>
+            <button onclick="chrombrowser.menuClick(event, 9)">All</button>
+            <button onclick="chrombrowser.menuClick(event, 7)">All kit</button>
+            <button onclick="chrombrowser.menuClick(event, 20)">This Seg</button>
           <br/>
           <span>un-Highlight:</span>
-            <button onclick="menuClick(event, 1)">All kit matches</button>
-            <button onclick="menuClick(event, 12)">All seg matches</button>
-            <button onclick="menuClick(event, 10)">All</button>
-            <button onclick="menuClick(event, 8)">All kit</button>
-            <button onclick="menuClick(event, 21)">This Seg</button>
+            <button onclick="chrombrowser.menuClick(event, 1)">All kit matches</button>
+            <button onclick="chrombrowser.menuClick(event, 12)">All seg matches</button>
+            <button onclick="chrombrowser.menuClick(event, 10)">All</button>
+            <button onclick="chrombrowser.menuClick(event, 8)">All kit</button>
+            <button onclick="chrombrowser.menuClick(event, 21)">This Seg</button>
           <br/>
           <!--<button onclick="menuClick(event, 2)"> Download Interesting Matches</button><br/>-->
-          <button onclick="menuClick(event, 3)"> View Tree <span id="treecount">0</span></button><br/>
-          <button onclick="menuClick(event, 4)"> Review Match</button><br/>
-          <button onclick="menuClick(event, 13)"> Ancestry member search</button><br/>
+          <button onclick="chrombrowser.menuClick(event, 3)"> View Tree <span id="treecount">0</span></button><br/>
+          <button onclick="chrombrowser.menuClick(event, 4)"> Review Match</button><br/>
+          <button onclick="chrombrowser.menuClick(event, 13)"> Ancestry member search</button><br/>
         </nav>
       </div>  
     </div>
-    <script>
+    <div class="wait" id="wait" style="display:none;"></div>
+    <script type="module">
 "use strict;";
 
 
@@ -429,7 +475,17 @@ div a:link, div a:visited {
   highlight: true|false, - copied from kits[kitTo].
 }
 */
+
+import { get, set } from 'https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js';
+
 var data = {};
+
+var gzHandle;
+var filename = '';
+var filenames = [];
+
+var refreshAll = false;
+var refreshCommon = false;
 
 // kits = {
 //   "AZ123": {"name": "John Doe", "email": "a@b.c", "color": "..."},
@@ -481,6 +537,21 @@ let endRSIDs = {};
 let interestingsegs = {};
 
 
+let config = {
+  viewtype: 'compact',
+  chrview: 0,
+  segmentHeight: 20,
+  chrsize: 'screenwidth',
+  hideuncoloured: 'all',
+  fromkit: 'all',
+  nametype: 'name',
+  includekits:[],
+  excludekits: [],
+  minCm: 5,
+  maxCm: 1000,
+};
+
+
 
 // global variables used:
 // https://en.wikipedia.org/wiki/Chromosome#Human_chromosomes
@@ -502,8 +573,20 @@ var menuPositionY;
 var menuSegid;
 
 
+function startWait(text){
+  let waitdlg = document.getElementById('wait');
+  waitdlg.innerHTML = waitdlg.innerHTML + text + '<br/>';
+  waitdlg.style.display = 'block';
+}
+
+function endWait(){
+  let waitdlg = document.getElementById('wait');
+  waitdlg.style.display = 'none';
+  waitdlg.innerHTML = '';
+}
 
 async function downloadjson(){
+  readConfig();
   let downloaddata = { sources: {} };
   let datakeys = Object.keys(data);
   for (let i = 0; i < datakeys.length; i++){
@@ -513,10 +596,56 @@ async function downloadjson(){
   }
   downloaddata.kits = kits;
   downloaddata.matchesMeta = matchesMeta;
+  downloaddata.config = config;
   
   let gz = await compress(JSON.stringify(downloaddata, null, ' '));
   
   download(gz, "data.json.gz");
+}
+
+async function saveToDbjson(saveAs){
+  readConfig();
+  if (!filename || saveAs){
+    // create a new handle
+    const opts = {
+      types: [{
+        description: 'gz File',
+        accept: {'application/octet-stream': ['.gz']},
+      }],
+    };
+    gzHandle = await window.showSaveFilePicker(opts);
+    let file = await gzHandle.getFile();
+    filename = file.name;
+    document.getElementById('filename').innerHTML = "save <b>"+filename+"</b>";
+    let x = await setExistingFile();
+  }
+
+  startWait('Saving '+filename);
+
+  let status = await gzHandle.requestPermission({ mode : "readwrite" });
+  
+  let downloaddata = { sources: {} };
+  let datakeys = Object.keys(data);
+  for (let i = 0; i < datakeys.length; i++){
+    if (datakeys[i] !== 'all' && !datakeys[i].startsWith('common')){
+      downloaddata.sources[datakeys[i]] = data[datakeys[i]];
+    }
+  }
+  downloaddata.kits = kits;
+  downloaddata.matchesMeta = matchesMeta;
+  downloaddata.filenames = filenames;
+  downloaddata.config = config;
+  
+  let gz = await compress(JSON.stringify(downloaddata, null, ' '));
+  
+  const writableStream = await gzHandle.createWritable();
+
+  // write our file
+  await writableStream.write(gz);
+
+  // close the file and write the contents to disk.
+  await writableStream.close();
+  endWait();
 }
 
 
@@ -613,7 +742,7 @@ function getPosition(e) {
 
 function contextMenu(e) {
   console.log('Context', e);
-  taskItemInContext = e.target;
+  let taskItemInContext = e.target;
 
   if ( taskItemInContext ) {
     e.preventDefault();
@@ -665,27 +794,9 @@ function contextMenu(e) {
    * @param {Object} e The event
    */
   function positionMenu(e) {
-    clickCoords = getPosition(e);
-    clickCoordsX = clickCoords.x;
-    clickCoordsY = clickCoords.y;
+    let windowWidth = window.innerWidth;
+    let windowHeight = window.innerHeight;
 
-    menuWidth = menu.offsetWidth + 4;
-    menuHeight = menu.offsetHeight + 4;
-
-    windowWidth = window.innerWidth;
-    windowHeight = window.innerHeight;
-
-//    if ( (windowWidth - clickCoordsX) < menuWidth ) {
-//      menu.style.left = windowWidth - menuWidth + "px";
-//    } else {
-//      menu.style.left = clickCoordsX + "px";
-//    }
-
-//    if ( (windowHeight - clickCoordsY) < menuHeight ) {
-//      menu.style.top = windowHeight - menuHeight + "px";
-//    } else {
-//      menu.style.top = clickCoordsY + "px";
-//    }
     menu.style.position = 'fixed';
     menu.style.zIndex = 2000;
     menu.style.top = windowHeight*0.05+'px';
@@ -1003,6 +1114,172 @@ function csvParse(text) {
   return segments;
 }
 
+
+function addMatchMeta(dest, d){
+  if (d['DNA Match ID']){
+    let matchID = d['DNA Match ID'].split('-');
+    let kitFrom = [];
+    for (let i = 0; i < 6; i++){
+      kitFrom.push(matchID.shift());
+    }
+    kitFrom = kitFrom.join('-');
+    let kitTo = matchID.join('-');
+
+    if (kitTo){
+      dest.matchesMeta[kitTo] = d;
+    }
+  }
+}
+
+function addSegmentData(dest, d){
+  // myHeritage data is like:
+  // DNA Match ID,Name,Match name,Chromosome,Start Location,End Location,Start RSID,End RSID,Centimorgans,SNPs,color
+  // ,,,,,,,,,,
+  // D-9901AC20-79C0-438F-98CA-AB11FEFE1876-D-FF58D9C4-FCEC-44F0-9654-EE143A17F70C,Simon Hailes,Beverley Porter,1,9500795,20451281,rs9662295,rs7531682,22.8,6656,red
+  let e = {};
+  let currKit = Math.random().toString(36);
+
+  
+  if (d['DNA Match ID']){
+    if (d['DNA Match ID'] === 'action'){
+      let action = {
+        kit: d['Name'],
+        type: d['type'],
+      };
+      //actions.push(action);
+      return {};
+    }
+    // like "D-9901AC20-79C0-438F-98CA-AB11FEFE1876-D-FF58D9C4-FCEC-44F0-9654-EE143A17F70C"
+    let matchID = d['DNA Match ID'].split('-');
+    let kitFrom = [];
+    for (let i = 0; i < 6; i++){
+      kitFrom.push(matchID.shift());
+    }
+    e.kitFrom = kitFrom.join('-');
+    e.kitTo = matchID.join('-');
+  } else {
+    e.kitFrom = d.kit1 || d.name || d.NAME || d.Name || currKit;
+    e.kitTo = d.kit2 || d.matchname || d.Match || d["MATCHNAME"] || d["Match name"] || d["Match Name"] || d["Display Name"] || "";
+  }
+
+  e.chr = (d.chr || d.Chr || d["CHROMOSOME"] || d["Chromosome"] || d["Chromosome Number"] || "0");
+  e.chr = e.chr.trim() === "X" || e.chr.trim() === "x" ? 23 : + ("" + e.chr.trim()).replace(/chr/, "");
+  if (e.chr < 1 || e.chr > 23) return;
+  e.chr = +e.chr;
+
+  e.start =  + (d.start || d.Start || d["START LOCATION"] || d["Start Location"] || d["Chromosome Start Point"] || "0").replace(/,/g, "");
+  e.end =  + (d.end || d.End || d["END LOCATION"] || d["End Location"] || d["Chromosome End Point"] || "0").replace(/,/g, "");
+  
+  e.startRSID = d['Start RSID'];
+  e.endRSID = d['End RSID'];
+  
+  e.cm =  + (d.cm || d.cM || d["CENTIMORGANS"] || d["Centimorgans"] || d["Genetic Distance"] || "0").replace(/,/g, "");
+  e.side = getSide(d);
+  
+//    e.highlight = (e.kitTo === 'Berverly Porter');
+
+  if (!dest.kits[e.kitFrom]) {
+    var nameFrom = (d.name1 || d.name || d.NAME || d.Name || "");
+    var emailFrom = (d.email1 || "");
+    dest.kits[e.kitFrom] = {
+      "kit": e.kitFrom,
+      "name": nameFrom,
+      outlineColour: cat20(e.kitFrom),
+      kits:{},
+      index: kitindex++,
+    };
+    if (emailFrom){
+      dest.kits[e.kitFrom].email = emailFrom;
+    }
+  }
+  if (!dest.kits[e.kitTo]) {
+    var nameTo = d.name2 || d.Match || d["MATCHNAME"] || d["Match name"] || d["Display Name"] || "";
+    var emailTo = (d.email2 || "");
+    var color = d.color || d.Color || d.Colour || cat20(e.kitTo);
+    var opacity = 0.25;
+    var always = false;
+    dest.kits[e.kitTo] = {
+      "kit": e.kitTo,
+      "name": nameTo,
+      "color": color,
+      "opacity": opacity,
+      kits:{},
+      index: kitindex++,
+    };
+    if (emailTo){
+      dest.kits[e.kitTo].email = emailTo;
+    }
+  }
+  dest.kits[e.kitFrom].kits[e.kitTo] = true;
+  
+  // manually added column to help highlight or not...
+  if (d.type){
+    dest.kits[e.kitTo].type = d.type;
+    switch(dest.kits[e.kitTo].type){
+      case 'highlight':
+        break;
+      case 'ignore':
+        break;
+    }
+  }
+
+  e.row = 0;
+
+  d = null;
+
+  dest.segments.push(e);
+}
+
+//////////////////////////////////
+// intended to decide what type of CSV is being parsed
+function csvParseAny(text) {
+	let currKit = Math.random().toString(36);
+
+  let dataRead = {
+    type: 'unknown'
+  };
+  
+  let segments = [];
+  
+  /*let segments = */
+  
+  d3.csvParse(text, function (d, i) {
+		var e = {}; // unused dummy return value
+    switch(dataRead.type){
+      case 'unknown':{
+        let chr = (d.chr || d.Chr || d["CHROMOSOME"] || d["Chromosome"] || d["Chromosome Number"]);
+        if (chr !== undefined){
+          dataRead.segments = [];
+          dataRead.kits = {};
+          dataRead.type = 'segments';
+        } else {
+          if (d.Age !== undefined || d['Estimated relationship'] !== undefined){
+            dataRead.type = 'matchlist';
+            dataRead.matchesMeta = {};
+          }
+        }
+      } break;
+    }
+    switch(dataRead.type){
+      case 'unknown':{
+      } break;
+      case 'segments':{
+        addSegmentData(dataRead, d);
+      } break;
+      case 'matchlist':{
+        addMatchMeta(dataRead, d);
+      } break;
+    }
+		return e;
+	});
+  
+  //returns { type:'segments', segments[], kits:{} }
+  // or { type:'matchlist', matchesMeta: {} }
+  // or { type:'unknown' }
+  return dataRead;
+}
+
+
 function rewriteData(id) {
 	var csvdata = document.getElementById(id).value;
 	var lines = csvdata.split("\n")
@@ -1015,6 +1292,133 @@ function rewriteData(id) {
 		document.getElementById(id).value = lines.join("\n")
 	}
 }
+
+
+function clearData(){
+	data = {};
+	kits = {};
+	filteredData = [];
+  startRSIDs = {};
+  endRSIDs = {};
+  actions = [];
+}
+
+function readCSV(text){
+	var dataRead = csvParseAny(text);
+  
+  switch(dataRead.type){
+    case 'unknown':{
+    } break;
+    case 'segments':{
+      // we have a list of segments in dataRead.segments 
+      // we have an object of kits in dataRead.kits
+      // we need to merge these in to data[kitfrom]
+      // we need to trigger recalculate of data['all']
+      // we need to trigger recalculate of data['common'] - do we need more than one 'common'?
+
+      // merge in to data[kitfrom]
+      let kitFrom = dataRead.segments[0].kitFrom;
+
+      // this is the existing list of segments for this kit.
+      data[kitFrom] = data[kitFrom] || [];
+      for (let i = 0; i < dataRead.segments.length; i++){
+        // identify a unique id for this segment.
+        // this should be something which will be the same next load.
+        let s = dataRead.segments[i];
+        let segId = s.kitFrom+'_'+s.kitTo+'_'+s.start;
+        s.id = segId;
+        let existingSeg = segids[segId];
+        if (!existingSeg){
+          // add segment
+          data[kitFrom].push(s);
+          segids[segId] = s;
+        } else {
+          // assign to existing segment
+          Object.assign(existingSeg, s);
+        }
+      }
+      
+      mergeKits(dataRead);
+      
+      refreshAll = true;
+      refreshCommon = true;
+    } break;
+    case 'matchlist':{
+      // copy over, merging each in.
+      // so if we add notes against a match later,
+      // we won't lose them.
+      let metalist = Object.keys(dataRead.matchesMeta);
+      for (let i = 0; i < metalist.length; i++){
+        matchesMeta[metalist[i]] = matchesMeta[metalist[i]] || {};
+        matchesMeta[metalist[i]] = Object.assign(matchesMeta[metalist[i]], dataRead.matchesMeta[metalist[i]]);
+      }
+    } break;    
+  }
+  
+}
+
+function mergeKits(dataRead) {
+  let kitlist = Object.keys(dataRead.kits);
+  for (let i = 0; i < kitlist.length; i++){
+    let kit = dataRead.kits[kitlist[i]];
+    if (!kits[kitlist[i]]){
+      kits[kitlist[i]] = kit;
+    } else {
+      let kits2 = kits[kitlist[i]].kits;
+      kits2 = Object.assign(kits2, kit.kits || {});
+      kits[kitlist[i]] = Object.assign(kits[kitlist[i]], kit);
+      kits[kitlist[i]].kits = kits2;
+    }
+  }
+}
+
+function recalcDataAll(){
+  let kitsFrom = Object.keys(data);
+  let all = [];
+  for (let i = 0; i < kitsFrom.length; i++){
+    if (kitsFrom[i] !== 'all' && !kitsFrom[i].startsWith('common')){
+      all.push(...data[kitsFrom[i]]);
+    }
+  }
+  data['all'] = all;
+}
+
+
+
+function recalcDataCommon(){
+  let kitsFrom = Object.keys(data);
+  let kitlist = [];
+  for (let i = 0; i < kitsFrom.length; i++){
+    if (kitsFrom[i] !== 'all' && !kitsFrom[i].startsWith('common')){
+      kitlist.push(kitsFrom[i]);
+    }
+    
+    if (kitsFrom[i].startsWith('common')){
+      delete data[kitsFrom[i]];
+    }
+  }
+  
+  for (let i = 0; i < kitlist.length; i++){
+    let kit1 = kits[kitlist[i]];
+    for (let j = i+1; j < kitlist.length; j++){
+      let kit2 = kits[kitlist[j]];
+      let name = 'common-'+kit1.name +'-'+kit2.name;
+      data[name] = [];
+      for (let s = 0; s < data['all'].length; s++){
+        let seg = data['all'][s];
+        let common = true;
+        if (!kit1.kits[seg.kitTo]) common = false;
+        if (!kit2.kits[seg.kitTo]) common = false;
+        if (common){
+          data[name].push(seg);
+        }
+      }
+    }
+  }
+  setOptions();
+}
+
+
 
 
 function loadData() {
@@ -1074,8 +1478,13 @@ function loadData() {
         both = true;
         break;
       }
-      if (!kits[kitfroms[j]].kits[seg.kitTo]){
+      if (!kits[kitfroms[j]]){
         both = false;
+        console.error('no kit for kitfrom '+kitfroms[j]);
+      } else {
+        if (!kits[kitfroms[j]].kits[seg.kitTo]){
+          both = false;
+        }
       }
     }
     if (both){
@@ -1249,13 +1658,31 @@ function download(content, filename, contentType)
 
 
 function setOptions() {
-	var sel = d3.select("#fromkit").selectAll("option").data(Object.keys(data).map(x => kits[x]), function(d) {return d.kit;});
-	sel.enter().append("option").attr("value", function (d) {
-		return d.kit
-	}).text(function (d) {
-		return d.kit + (d.name != d.kit ? " " + d.name : "")
-	});
-	sel.exit().remove();
+  readConfig();
+  
+  // fill fromkit
+  let sel = document.getElementById('fromkit');
+  
+  sel.innerHTML = '';
+  
+  let keys = Object.keys(data);
+  
+  if (!config.fromkit && keys.length){
+    config.fromkit = keys[keys.length-1];
+  }
+  
+  for (let i = 0; i < keys.length; i++){
+    let name = keys[i];
+    let value = keys[i];
+    if (kits[keys[i]] && kits[keys[i]].name){
+      name = kits[keys[i]].name;
+    }
+    
+    let option = document.createElement('option');
+    option.value = value;
+    option.innerHTML = name;
+    sel.appendChild(option);
+  }
 }
 
 function filterData(segments, includekits, excludekits, minCm, maxCm) {
@@ -1447,8 +1874,8 @@ function mouseover2(ev) {
   let menuWidth = tooltipDiv.offsetWidth + 4;
   let menuHeight = tooltipDiv.offsetHeight + 4;
 
-  windowWidth = window.innerWidth;
-  windowHeight = window.innerHeight;
+  let windowWidth = window.innerWidth;
+  let windowHeight = window.innerHeight;
 
   if ( (windowWidth - clickCoordsX) < menuWidth ) {
     tooltipDiv.style.left = windowWidth - menuWidth + "px";
@@ -1512,8 +1939,8 @@ function dblClickSeg(ev){
 
 /*
 function highlightKit(kit, enable){
-	var fromkit = document.getElementById("fromkit").value;
-	var segments = data[fromkit] || [];
+  readConfig();
+	var segments = data[config.fromkit] || [];
   
   for (let s = 0; s < segments.length; s++){
     let seg = segments[s];
@@ -1691,12 +2118,12 @@ function setHighlight(){
 }
 
 
-function addSegments(div, chrom, chrsize) {
+function addSegments(div, chrom, chromwidth) {
 
-	var segmentHeight = +document.getElementById("segmentHeight").value;
+  readConfig();
 
 	var sc = (len)=>{
-    let newlen = (len/chrlen[chrom.chr])*chrsize;
+    let newlen = (len/chrlen[chrom.chr])*chromwidth;
     return newlen;
   };
 
@@ -1711,8 +2138,8 @@ function addSegments(div, chrom, chrsize) {
       isnew = true;
     }
     newdiv.style.width = (sc(d.end) - sc(d.start)) + 'px';
-    newdiv.style.height = segmentHeight + 'px'
-    newdiv.style.top = (1 + d.row * (segmentHeight + 1)) + 'px';
+    newdiv.style.height = config.segmentHeight + 'px'
+    newdiv.style.top = (1 + d.row * (config.segmentHeight + 1)) + 'px';
     newdiv.style.left = sc(d.start) + 'px';
 
     let highlight = true; //kits[d.kitTo].highlight; // default to kit highlight
@@ -1740,6 +2167,7 @@ function addSegments(div, chrom, chrsize) {
       newdiv.style.position = 'absolute';
       if (!kits[d.kitTo].color) kits[d.kitTo].color = cat20(d.kitTo);
       newdiv.style.backgroundColor = kits[d.kitTo].color;
+      newdiv.style.whiteSpace = "nowrap";
 
       newdiv.addEventListener('mouseover', mouseover2);//(event) => {mouseover(event, d);});
       newdiv.addEventListener('mouseout', mouseout);
@@ -1759,44 +2187,52 @@ function getChrBoxWidth(chr, chrsize) {
 }
 
 function updateCm() {
-	let minCm = +document.getElementById("minCm").value || 10;
-	document.getElementById("minCm").value = minCm;
-
-	let maxCm = +document.getElementById("maxCm").value || "";
-	document.getElementById("maxCm").value = maxCm;
-
-	var params = new URLSearchParams(location.search);
-	if (params.has("minCm") || minCm != 10) {
-		params.set("minCm", minCm);
-	}
-	if (params.has("maxCm") || maxCm !== "") {
-		params.set("maxCm", maxCm);
-	}
-
-	window.history.replaceState({}, '', `${location.pathname}?${params}${window.location.hash}`);
-
+  readConfig();
 	updateAll();
 }
 
 function updateAll() {
+  readConfig();
 	updateData();
   updateDivDisplay();
 }
 
 
+function readConfig(){
+	config.viewtype = document.getElementById("viewtype").value;
+	config.chrview = +document.getElementById("chrview").value;
+	config.segmentHeight = +document.getElementById("segmentHeight").value;
+	config.chrsize = document.getElementById("chrsize").value;
+  config.hideuncoloured = document.getElementById("hideuncoloured").value;
+	config.fromkit = document.getElementById("fromkit").value;
+  config.nametype =  document.getElementById("nametype").value;
+	config.includekits = document.getElementById("includekits").value.split('\n').filter(e => e.length > 0);
+	config.excludekits = document.getElementById("excludekits").value.split('\n').filter(e => e.length > 0);
+	config.minCm = document.getElementById("minCm").value || 5;
+	config.maxCm = document.getElementById("maxCm").value || 1000;
+}
+
+function setConfig(){
+	document.getElementById("viewtype").value = config.viewtype;
+	document.getElementById("chrview").value = config.chrview;
+	document.getElementById("segmentHeight").value = config.segmentHeight;
+  document.getElementById("chrsize").value = config.chrsize;
+  document.getElementById("hideuncoloured").value = config.hideuncoloured;
+	document.getElementById("fromkit").value = config.fromkit;
+  document.getElementById("nametype").value = config.nametype;
+	document.getElementById("includekits").value = config.includekits.join('\n');
+  document.getElementById("excludekits").value = config.excludekits.join('\n');
+	document.getElementById("minCm").value = config.minCm;
+	document.getElementById("maxCm").value = config.maxCm;
+}
+
 
 function updateDivDisplay() {
-	var viewType = document.getElementById("viewtype").value;
-	var chrview = +document.getElementById("chrview").value;
-	var segmentHeight = +document.getElementById("segmentHeight").value;
-	var chrsize = document.getElementById("chrsize").value;
-  var hideuncoloured = document.getElementById("hideuncoloured").value;
-  
+  readConfig();
 	var rootDiv = document.getElementById("divchrbrowser");
   rootDiv.innerHTML = '';
 
-	var fromkit = document.getElementById("fromkit").value;
-	let segments = data[fromkit] || [];
+	let segments = data[config.fromkit] || [];
   
   let segs = data['all'] || [];
   // hide all segments which have divs - we may filter them out and they would remain.
@@ -1818,11 +2254,11 @@ function updateDivDisplay() {
   }
   
 	filteredByChr = filteredData;
-	if (chrview != 0 ) {
-		filteredByChr = filteredData.filter(e => e.chr == chrview);
+	if (config.chrview != 0 ) {
+		filteredByChr = filteredData.filter(e => e.chr == config.chrview);
 	}
   
-  if (hideuncoloured === 'coloured'){
+  if (config.hideuncoloured === 'coloured'){
     for (let i = 0; i < filteredByChr.length; i++){
       let chrom = filteredByChr[i];
       let newsegs = [];
@@ -1840,7 +2276,7 @@ function updateDivDisplay() {
     }
   }
   
-	filteredByChr = sortData(filteredByChr, viewType);
+	filteredByChr = sortData(filteredByChr, config.viewtype);
 
 	// Create chromosomes
   let y = 0;
@@ -1855,9 +2291,11 @@ function updateDivDisplay() {
         newdiv.classList.add('chrom');
         isnew = true;
       }
+      let chromwidth = getChrBoxWidth(chrom.chr, config.chrsize);
+
       newdiv.id = `chrdiv${chrom.chr}_${chrom.side}`;
-      newdiv.style.width = getChrBoxWidth(chrom.chr, chrsize) + 'px';
-      newdiv.style.height = 1 + chrom.numRows * (segmentHeight + 1) + 'px'
+      newdiv.style.width = chromwidth + 'px';
+      newdiv.style.height = 1 + chrom.numRows * (config.segmentHeight + 1) + 'px'
       newdiv.style.top = y + 'px';
       newdiv.style.left = 20 + 'px';
       //newdiv.style.position = 'absolute';
@@ -1872,10 +2310,10 @@ function updateDivDisplay() {
       newdiv.style.transform = "translate(20px, 0px)"
 
       // only display if not filtered by chromosome
-      if (chrview && (chrom.chr != chrview)){
+      if (config.chrview && (chrom.chr != config.chrview)){
         newdiv.style.display = 'none';
       } else {
-        y += 1 + chrom.numRows * (segmentHeight + 1);
+        y += 1 + chrom.numRows * (config.segmentHeight + 1);
         newdiv.style.display = 'block';
       }
 
@@ -1890,7 +2328,7 @@ function updateDivDisplay() {
       rootDiv.append(newdiv);
       
       // create segments 
-      addSegments(newdiv, chrom, getChrBoxWidth(chrom.chr, chrsize));
+      addSegments(newdiv, chrom, getChrBoxWidth(chrom.chr, chromwidth));
     }
   }
   
@@ -1898,8 +2336,8 @@ function updateDivDisplay() {
 }
 
 function updateViewType(){
-	var viewType = document.getElementById("viewtype").value;
-	filteredByChr = sortData(filteredByChr, viewType);
+  readConfig();
+	filteredByChr = sortData(filteredByChr, config.viewtype);
   updatePosn();
 }
 
@@ -1909,26 +2347,21 @@ function updateHidden(){
 }
 
 function updatePosn(){
-	var viewType = document.getElementById("viewtype").value;
-	var chrview = +document.getElementById("chrview").value;
-	var segmentHeight = +document.getElementById("segmentHeight").value;
-	var chrsize = document.getElementById("chrsize").value;
-  
-  var nametype =  document.getElementById("nametype").value;
+  readConfig();
   
 
   let y = 0;
   for (let i = 0; i < filteredByChr.length; i++){
     let chrom = filteredByChr[i];
     if (chrom.div){
-      let chromwidth = getChrBoxWidth(chrom.chr, chrsize);
+      let chromwidth = getChrBoxWidth(chrom.chr, config.chrsize);
       var sc = (len)=>{
         let newlen = (len/chrlen[chrom.chr])*chromwidth;
         return newlen;
       };
-      let height = 1 + chrom.numRows * (segmentHeight + 1) + 'px'
+      let height = 1 + chrom.numRows * (config.segmentHeight + 1) + 'px'
       let top = y + 'px';
-      y += 1 + chrom.numRows * (segmentHeight + 1);
+      y += 1 + chrom.numRows * (config.segmentHeight + 1);
 
       if (chrom.div.style.width !== chromwidth + 'px') chrom.div.style.width = chromwidth + 'px';
       if (chrom.div.style.height !== height) chrom.div.style.height = height;
@@ -1938,15 +2371,15 @@ function updatePosn(){
         if (segdivs[d.id]){
           let div = segdivs[d.id];
           let width = (sc(d.end) - sc(d.start)) + 'px';
-          let height = segmentHeight + 'px'
-          let top = (1 + d.row * (segmentHeight + 1)) + 'px';
+          let height = config.segmentHeight + 'px'
+          let top = (1 + d.row * (config.segmentHeight + 1)) + 'px';
           let left = sc(d.start) + 'px';
           if (div.style.top !== top) div.style.top = top;
           if (div.style.height !== height) div.style.height = height;
           if (div.style.width !== width) div.style.width = width;
           if (div.style.left !== left) div.style.left = left;
           let name = kits[d.kitTo].name;
-          switch (nametype){
+          switch (config.nametype){
             case 'name':
               break;
             case 'kit':
@@ -1969,14 +2402,9 @@ function updatePosn(){
 
 
 function updateData() {
-	var fromkit = document.getElementById("fromkit").value;
-	var includekits = document.getElementById("includekits").value.split('\n').filter(e => e.length > 0);
-	var excludekits = document.getElementById("excludekits").value.split('\n').filter(e => e.length > 0);
-	var minCm = document.getElementById("minCm").value || 5;
-	var maxCm = document.getElementById("maxCm").value || 1000;
-
-	var segments = data[fromkit] || [];
-	filterData(segments, includekits, excludekits, minCm, maxCm);
+  readConfig();
+	var segments = data[config.fromkit] || [];
+	filterData(segments, config.includekits, config.excludekits, config.minCm, config.maxCm);
 }
 
 function dragOverHandler(ev) {
@@ -1984,8 +2412,11 @@ function dragOverHandler(ev) {
 	ev.preventDefault();
 }
 
+let gzFile;
+
 async function loadJson(fileitem, ext, cb) {
 	var file = fileitem;
+  gzFile = fileitem;
 	var reader = new FileReader();
 	reader.onloadend = function () {
     let data = reader.result;
@@ -1993,14 +2424,14 @@ async function loadJson(fileitem, ext, cb) {
       decompress(data).then((text)=>{
         let json = JSON.parse(text);
         processJson(json);
-        setOptions();
+        //setOptions();
         setHighlight();
         cb();
       });
     } else {
       let json = JSON.parse(data);
       processJson(json);
-      setOptions();
+      //setOptions();
       setHighlight();
       cb();
     }
@@ -2039,6 +2470,15 @@ function decompress(byteArray) {
 }
 //////////////////////////////////////////////////////////////
 
+function setFilenames(){
+  let txt = '';
+  for (let i = 0; i < filenames.length; i++){
+    txt += filenames[i];
+    txt += '<br/>';
+  }
+ 
+  document.getElementById('filenames').innerHTML = txt;
+}
 
 function processJson(downloaddata){
   matchesMeta = downloaddata.matchesMeta || {};
@@ -2046,8 +2486,15 @@ function processJson(downloaddata){
   
   data = {};
   segids = {};
+  filenames = downloaddata.filenames;
+  
+  setFilenames();
   
   let all = [];
+
+  readConfig();
+  config = Object.assign(config, downloaddata.config || {});
+  
   
   let sources = Object.keys(downloaddata.sources);
   for (let i = 0; i < sources.length; i++){
@@ -2061,6 +2508,7 @@ function processJson(downloaddata){
   
   let common = [];
   let kitfroms = Object.keys(data);
+  
 
   for (let i = 0; i < all.length; i++){
     let both = true;
@@ -2070,8 +2518,14 @@ function processJson(downloaddata){
         both = true;
         break;
       }
-      if (!kits[kitfroms[j]].kits[seg.kitTo]){
+      
+      if (!kits[kitfroms[j]]){
         both = false;
+        console.error('no kit for kitfrom '+kitfroms[j]);
+      } else {
+        if (!kits[kitfroms[j]].kits[seg.kitTo]){
+          both = false;
+        }
       }
     }
     if (both){
@@ -2086,6 +2540,39 @@ function processJson(downloaddata){
   pruneRSIDs(startRSIDs);
   pruneRSIDs(endRSIDs);
   
+  // ensure the readConfig in setOptions does not overwrite us...
+  setConfig();
+  // needs data[]
+  setOptions();
+  // needs options set to set fromkit....
+  setConfig();
+  
+}
+
+
+function loadFromBlob(dbdataContent){
+  dbdataContent.text().then((text)=>{
+    let json = JSON.parse(text);
+    processJson(json);
+    //setOptions();
+    setHighlight();
+    updateAll();
+  });
+}
+
+
+function loadFileText(fileitem) {
+	var file = fileitem;
+  return new Promise((resolve)=>{
+    var reader = new FileReader();
+    reader.onloadend = ()=>{
+      resolve(reader.result);
+    };
+    reader.onerror = ()=>{
+      reject(arguments);
+    };
+    reader.readAsText(file);
+  });
 }
 
 
@@ -2105,7 +2592,7 @@ function loadFile(fileitem, resolve, reject) {
 
 var matchesData = [];
 
-function loadFile2(fileitem, resolve, reject) {
+async function loadFile2(fileitem, resolve, reject) {
 	var file = fileitem;
 	var reader = new FileReader();
 	reader.onloadend = function () {
@@ -2118,7 +2605,7 @@ function loadFile2(fileitem, resolve, reject) {
 	reader.readAsText(file);
 }
 
-function dropHandler(ev) {
+async function dropHandler(ev) {
 	// Prevent default behavior (Prevent file from being opened)
 	ev.preventDefault();
 
@@ -2131,15 +2618,28 @@ function dropHandler(ev) {
 			if (ev.dataTransfer.items[i].kind === 'file') {
         let f = ev.dataTransfer.items[i].getAsFile();
         let ext = f.name.toLowerCase().split('.').pop();
+        let fname = f.name;
         if (ext === 'json' || ext === 'gz'){
+          filename = f.name;
+          ev.dataTransfer.items[i].getAsFileSystemHandle()
+            .then((h)=>{gzHandle = h;});
+          startWait('Loading '+filename);
           loadJson(f, ext, ()=>{
+            document.getElementById('filename').innerHTML = "save <b>"+filename+"</b>";
             updateAll();
+            endWait();
           });
         } else {
-          var t = new Promise((resolve, reject) => {
+          startWait('Loading '+fname);
+          filenames.push(fname);
+          setFilenames();
+          let text = await loadFileText(f);
+          await readCSV(text);
+        
+/*          var t = new Promise((resolve, reject) => {
               loadFile(f, resolve, reject);
             });
-          tasks.push(t);
+          tasks.push(t);*/
         }
 			}
 		}
@@ -2153,13 +2653,17 @@ function dropHandler(ev) {
 	// Pass event to removeDragData for cleanup
 	removeDragData(ev)
 
-  if (tasks.length){
-    // Once all files are loaded
-    Promise.all(tasks).then((msg) => {
-      loadData();
-      updateAll();
-    });
+  if (refreshAll){
+    recalcDataAll();
+    refreshAll = false;
   }
+  if (refreshCommon){
+    recalcDataCommon();
+    refreshCommon = false;
+  }
+  
+  updateAll();
+  endWait();
 }
 
 function dropHandler2(ev) {
@@ -2204,19 +2708,6 @@ function removeDragData(ev) {
 		// Use DataTransfer interface to remove the drag data
 		ev.dataTransfer.clearData();
 	}
-}
-
-function addCsvInput() {
-	var div = document.getElementById("csvdatadiv");
-	var num = div.children.length;
-	var node = document.getElementById("csvdiv0").cloneNode(true);
-	node.id = "csvdiv" + num;
-	node.children[2].htmlFor = "csvdata" + num;
-	node.children[4].id = "csvdata" + num;
-	node.children[4].name = "csvdata" + num;
-	div.appendChild(node);
-  div.style.display = 'none';
-	return node.children[4];
 }
 
 function showdiv(id) {
@@ -2270,45 +2761,57 @@ function loadURL(url, resolve, reject) {
 		});
 }
 
-function pageLoad() {
-	var urls = [];
-
-	if (typeof URLSearchParams === 'undefined') {
-		if (window.location.search.startsWith("?url=")) {
-			urls.push(window.location.search.substring(5));
-		}
-	} else {
-		var params = new URLSearchParams(location.search);
-		urls = params.getAll("url");
-
-		let minCm = +params.get("minCm");
-		if (minCm > 0 && minCm < 200) {
-			document.getElementById("minCm").value = minCm;
-		}
-
-		let maxCm = +params.get("maxCm");
-		if (maxCm > 0 && maxCm < 200) {
-			document.getElementById("maxCm").value = maxCm;
-		}
-	}
-
-	if (urls.length > 0) {
-		loadAll(urls, loadURL);
-	}
-
-	var h = window.location.hash;
-	if (h === '#Filters') {
-		showdiv('filters');
-	} else if (h === '#Display') {
-		showdiv('display');
-	} else if (h === '#none') {
-		showdiv('none');
-	} else {
-		showdiv('data');
-	}
+function getExistingFile(){
+    get('file').then((fileHandleOrUndefined)=>{
+      if (fileHandleOrUndefined) {
+        fileHandleOrUndefined.requestPermission({ mode : "readwrite" }).then((status)=>{
+          if (status){
+            pre.textContent =
+                `Retrieved file handle "${fileHandleOrUndefined.name}" from IndexedDB.`;
+            gzHandle = fileHandleOrUndefined;
+            gzHandle.getFile().then((f)=>{
+              filename = f.name;
+              let ext = f.name.toLowerCase().split('.').pop();
+              startWait('Loading '+filename);
+              loadJson(f, ext, ()=>{
+                document.getElementById('filename').innerHTML = "save <b>"+filename+"</b>";
+                updateAll();
+                endWait();
+              });
+            });
+          }
+        });
+      }
+    });
 }
 
-pageLoad();
+async function setExistingFile(){
+    await set('file', gzHandle);    
+}
+
+async function pageLoad() {
+	var urls = [];
+	showdiv('data');
+}
+
+
+await pageLoad();
+
+let module = {
+  getExistingFile,
+  saveToDbjson,
+  showdiv,
+  dragOverHandler,
+  dropHandler,
+  menuClick,
+  updateHidden,
+  updateAll,
+  updateViewType,
+  updatePosn,
+  updateCm,
+};
+
+window.chrombrowser = module;
 
 </script>
 	</body>
