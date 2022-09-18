@@ -249,23 +249,23 @@ div a:link, div a:visited {
     <header>
     </header>
 
-    <div class="fillbrowser">
+    <div class="fillbrowser" onclick="chrombrowser.showdiv(event, 'none');">
       <div class="tooltip" id="tooltip"></div>
       <div class="headermenu">
         <nav>
           <ul>
-            <li><a href="#" onclick="chrombrowser.showdiv('none');">Yulvil Chromosome Browser</a></li>
-            <li><a href="#Data" onclick="chrombrowser.showdiv('data');">Data</a></li>
-            <li><a href="#Filters" onclick="chrombrowser.showdiv('filters');">Filters</a></li>
-            <li><a href="#Display" onclick="chrombrowser.showdiv('display');">Display</a></li>
+            <li><a href="#" onclick="chrombrowser.showdiv(event, 'none');">Yulvil Chromosome Browser</a></li>
+            <li><a href="#Data" onclick="chrombrowser.showdiv(event, 'data');">Data</a></li>
+            <li><a href="#Filters" onclick="chrombrowser.showdiv(event, 'filters');">Filters</a></li>
+            <li><a href="#Display" onclick="chrombrowser.showdiv(event, 'display');">Display</a></li>
             <li><span onclick="chrombrowser.saveToDbjson();" id="filename">Save</span></li>
             <li><span onclick="chrombrowser.saveToDbjson(true);" id="filename">SaveAs</span></li>
-            <li style="float: right"><a href="#" onclick="chrombrowser.showdiv('about');">About</a></li>
+            <li style="float: right"><a href="#" onclick="chrombrowser.showdiv(event, 'about');">About</a></li>
           </ul>
         </nav>
       </div>
       <div class="overlay">
-        <form id="myform" onsubmit="return false;">
+        <form id="myform" onsubmit="return false;" onclick="event.stopPropagation()">
             <div class="submenu">
               <div class="inputs" id="none">
                 <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
@@ -278,46 +278,15 @@ div a:link, div a:visited {
                   <p>&#128193; Drag one or more files here</p>
                 </div>
 
-<!--                <div class="drop_zone" ondrop="chrombrowser.dropHandler(event);" ondragover="chrombrowser.dragOverHandler(event);">
-                  <p>
-                    <label class="custom-file-upload">
-                      <input type="file" multiple="multiple" accept=".csv, .txt" onchange="chrombrowser.onFileSelect(this);" style="display: none;"/>
-                      &#128193; Select files from your computer
-                    </label>
-                  </p>
-                </div> -->
-
-                <div class="drop_zone" ondrop="chrombrowser.dropHandler2(event);" ondragover="chrombrowser.dragOverHandler(event);">
-                  <p>&#128193; Select myHeritage matches list file from your computer</p>
-                </div>
-<!--                <div class="drop_zone">
-                  <button onclick="downloadjson();">Download Data</button>
-                </div>-->
                 <div class="filenames" id="filenames">
                 </div>
 
-<!--                <div style="float: left;">
-                  <p>or
-                  <input type="button" name="addCsv" id="addCsv" value="Add CSV data" onclick="addCsvInput();" />
-                  </p>
-                </div>-->
                 <div>
                   <pre id="pre"></pre>
-                  <button id="button">test</button>
                   <button onclick="chrombrowser.getExistingFile();">Load Last File</button>
                 </div>
                   
               </div>
-
-<!--              <div id="csvdatadiv">
-                <div id="csvdiv0">
-                  <br/><br/>
-                  <label for="csvdata0">CSV Data</label>
-                  <br/>
-                  <textarea name="csvdata0" id="csvdata0" class="csvdata" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onChange="loadData();updateAll();"></textarea>
-                </div>
-              </div>-->
-
             </div>
             <div class="inputs" id="filters">
               <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
@@ -484,6 +453,8 @@ var gzHandle;
 var filename = '';
 var filenames = [];
 
+var matchesData = [];
+
 var refreshAll = false;
 var refreshCommon = false;
 
@@ -522,10 +493,6 @@ var filteredData = [];
 // final filtered data?
 var filteredByChr;
 
-// actions list
-var actions = [];
-
-
 // next kit iindex - used to anonomyse display
 let kitindex = 0;
 
@@ -557,6 +524,11 @@ let config = {
 // https://en.wikipedia.org/wiki/Chromosome#Human_chromosomes
 const chrlen = [0, 247199719, 242751149, 199446827, 191263063, 180837866, 170896993, 158821424, 146274826, 140442298, 135374737, 134452384, 132289534, 114127980, 106360585, 100338915, 88822254, 78654742, 76117153, 63806651, 62435965, 46944323, 49528953, 154913754];
 
+// this is used for the width of the chrom data overall!!!
+var width = getWidth() * 0.95;
+
+var tooltipDiv = document.getElementById('tooltip');
+
 
 var contextMenuClassName = "context-menu";
 var contextMenuItemClassName = "context-menu__item";
@@ -574,6 +546,7 @@ var menuSegid;
 
 
 function startWait(text){
+  console.log('startwait '+text);
   let waitdlg = document.getElementById('wait');
   waitdlg.innerHTML = waitdlg.innerHTML + text + '<br/>';
   waitdlg.style.display = 'block';
@@ -608,9 +581,11 @@ async function saveToDbjson(saveAs){
   if (!filename || saveAs){
     // create a new handle
     const opts = {
+      excludeAcceptAllOption: true,
+      suggestedName: 'chrombrowserdata.gz',
       types: [{
         description: 'gz File',
-        accept: {'application/octet-stream': ['.gz']},
+        accept: {'application/gzip': ['.gz']},
       }],
     };
     gzHandle = await window.showSaveFilePicker(opts);
@@ -711,32 +686,6 @@ function sortBySegment(data, fcmp) {
 		"data": d,
 		"numRows": data.length
 	};
-}
-
-/**
- * Get's exact position of event.
- * 
- * @param {Object} e The event passed in
- * @return {Object} Returns the x and y position
- */
-function getPosition(e) {
-  var posx = 0;
-  var posy = 0;
-
-  if (!e) var e = window.event;
-  
-  //if (e.pageX || e.pageY) {
-    posx = e.pageX;
-    posy = e.pageY;
-//  } else if (e.clientX || e.clientY) {
-    posx = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
-    posy = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
-//  }
-
-  return {
-    x: posx,
-    y: posy
-  }
 }
 
 
@@ -1019,11 +968,6 @@ function csvParse(text) {
 
     if (d['DNA Match ID']){
       if (d['DNA Match ID'] === 'action'){
-        let action = {
-          kit: d['Name'],
-          type: d['type'],
-        };
-        actions.push(action);
         return {};
       }
       // like "D-9901AC20-79C0-438F-98CA-AB11FEFE1876-D-FF58D9C4-FCEC-44F0-9654-EE143A17F70C"
@@ -1142,11 +1086,6 @@ function addSegmentData(dest, d){
   
   if (d['DNA Match ID']){
     if (d['DNA Match ID'] === 'action'){
-      let action = {
-        kit: d['Name'],
-        type: d['type'],
-      };
-      //actions.push(action);
       return {};
     }
     // like "D-9901AC20-79C0-438F-98CA-AB11FEFE1876-D-FF58D9C4-FCEC-44F0-9654-EE143A17F70C"
@@ -1300,7 +1239,6 @@ function clearData(){
 	filteredData = [];
   startRSIDs = {};
   endRSIDs = {};
-  actions = [];
 }
 
 function readCSV(text){
@@ -1427,7 +1365,6 @@ function loadData() {
 	filteredData = [];
   startRSIDs = {};
   endRSIDs = {};
-  actions = [];
   
   let all = [];
 
@@ -1501,8 +1438,6 @@ function loadData() {
   pruneRSIDs(endRSIDs);
 
 	setOptions();
-  
-  doActions();
   
   //highlightKits();
   setHighlight();
@@ -1787,9 +1722,6 @@ function getWidth() {
   );
 }
 
-var width = getWidth() * 0.8;
-
-var tooltipDiv = document.getElementById('tooltip');
 
 function ancestryMemberSearch(name){
   var a = document.createElement('a');
@@ -1844,30 +1776,9 @@ function mouseover2(ev) {
   str += "kitTo " + d.kitTo + name + "<br/>"+
     "kitFrom " + d.kitFrom + fromName + "<br/>"+
     "This segment " + d.cm.toFixed(1) + " cM";
-
-/*    
-    
-  if (startRSIDs[d.startRSID]){
-    let sRSIDstr = '';
-    for (let i = 0; i < startRSIDs[d.startRSID].length; i++){
-      sRSIDstr += `<br/>startmatch: ${kits[startRSIDs[d.startRSID][i].kitTo].name}`;
-    }
-    str += sRSIDstr;
-  }
-  if (endRSIDs[d.endRSID]){
-    let sRSIDstr = '';
-    for (let i = 0; i < endRSIDs[d.endRSID].length; i++){
-      sRSIDstr += `<br/>endmatch: ${kits[endRSIDs[d.endRSID][i].kitTo].name}`;
-    }
-    str += sRSIDstr;
-  }
-*/
     
   tooltipDiv.innerHTML = str;
-  //tooltipDiv.style.left = (ev.pageX + 40) + "px";
-  //tooltipDiv.style.top = (ev.pageY - 28) + "px";
   
-  //let clickCoords = getPosition(ev);
   let clickCoordsX = (ev.pageX + 40);
   let clickCoordsY = (ev.pageY - 28);
 
@@ -1894,7 +1805,6 @@ function mouseover2(ev) {
 
 function mouseout() {
   tooltipDiv.style.display = 'none';
-
 }
 
 function clickSeg(ev) {
@@ -1902,30 +1812,6 @@ function clickSeg(ev) {
     toggleMenuOff();
     return;
   }
-/*
-	var segments = data['all'] || [];
-
-  let id = ev.target.id;
-  let kit;
-  let seg;
-  for (let s = 0; s < segments.length; s++){
-    seg = segments[s];
-    if (seg.id === id){
-      console.log('clicked', seg);
-      kit = seg.kitTo;
-      break;
-    }
-  }
-  if (seg && segdivs[seg.id]){
-    let highlighted = kits[kit].highlight;
-    
-    let enable = !highlighted;
-    if (kits[seg.kitTo].type === 'highlighted'){
-      enable = true;
-    }
-    
-    highlightKit(kit, enable);
-  }*/
 }
 
 function dblClickSeg(ev){
@@ -1936,60 +1822,9 @@ function dblClickSeg(ev){
   setHighlight();
 }
 
-
-/*
-function highlightKit(kit, enable){
-  readConfig();
-	var segments = data[config.fromkit] || [];
-  
-  for (let s = 0; s < segments.length; s++){
-    let seg = segments[s];
-    if (seg.kitTo === kit){
-      if (segdivs[seg.id]){
-        if (!enable){
-          segdivs[seg.id].style.opacity = 0.5;
-          delete seg.color
-          kits[seg.kitTo].opacity = 0.5;
-          seg.highlight = false;
-          kits[seg.kitTo].highlight = false;
-        } else {
-          segdivs[seg.id].style.opacity = 1;
-          seg.color = kits[seg.kitTo].color = segdivs[seg.id].style.backgroundColor;
-          kits[seg.kitTo].opacity = 1;
-          seg.highlight = true;
-          kits[seg.kitTo].highlight = true;
-        }
-      }
-    }
-  }
-}
-*/
-
 function getKitFromSeg(segid){
   if (!segids[segid]) return;
   return segids[segid].kitTo;
-}
-
-
-function doActions(){
-  for (let i = 0; i < actions.length; i++){
-    if (kits[actions[i].kit]){
-      switch(actions[i].type){
-        case 'highlight':
-          highlightAllMatchingKit(actions[i].kit, true);
-          kits[actions[i].kit].type = 'highlight';
-          break;
-        case 'unhighlight':
-          highlightAllMatchingKit(actions[i].kit, false);
-          kits[actions[i].kit].type = 'ignore';
-          break;
-        case 'ignore':
-          //highlightAllMatchingKit(actions[i].kit, false);
-          kits[actions[i].kit].type = 'ignore';
-          break;      
-      }
-    }
-  }
 }
 
 function highlightKits(){
@@ -2005,8 +1840,6 @@ function highlightKits(){
     }
   }
 }
-
-
 
 function highlightAllMatchingKit(kit, enable){
 	var segments = data['all'] || [];
@@ -2158,9 +1991,9 @@ function addSegments(div, chrom, chromwidth) {
     }
     
     if (isnew) {
-      newdiv.style.margin = '';
-      newdiv.style.padding = '';
-      newdiv.style.border = '';
+      newdiv.style.margin = '0';
+      newdiv.style.padding = '0';
+      newdiv.style.border = '0';
       newdiv.style.overflow = 'hidden';
       newdiv.innerHTML = kits[d.kitTo].name || d.kitTo;
       newdiv.style.outline =  '1px solid '+kits[d.kitFrom].outlineColour;
@@ -2300,13 +2133,11 @@ function updateDivDisplay() {
       newdiv.style.left = 20 + 'px';
       //newdiv.style.position = 'absolute';
       newdiv.style.border = '2px solid black';
-      newdiv.style.margin = '';
-      newdiv.style.padding = '';
+      newdiv.style.margin = '0';
+      newdiv.style.padding = '0';
       newdiv.addEventListener('click', clickSeg);
       newdiv.addEventListener('dblclick', dblClickSeg);
       newdiv.addEventListener('contextmenu', contextMenu);
-//      newdiv.ondblclick="dblClickSeg(event);";
-  //    newdiv.oncontextmenu="contextMenu(event);";
       newdiv.style.transform = "translate(20px, 0px)"
 
       // only display if not filtered by chromosome
@@ -2328,7 +2159,7 @@ function updateDivDisplay() {
       rootDiv.append(newdiv);
       
       // create segments 
-      addSegments(newdiv, chrom, getChrBoxWidth(chrom.chr, chromwidth));
+      addSegments(newdiv, chrom, getChrBoxWidth(chrom.chr, config.chrsize));
     }
   }
   
@@ -2348,7 +2179,6 @@ function updateHidden(){
 
 function updatePosn(){
   readConfig();
-  
 
   let y = 0;
   for (let i = 0; i < filteredByChr.length; i++){
@@ -2412,38 +2242,37 @@ function dragOverHandler(ev) {
 	ev.preventDefault();
 }
 
-let gzFile;
-
-async function loadJson(fileitem, ext, cb) {
+async function loadJson(fileitem, ext) {
 	var file = fileitem;
-  gzFile = fileitem;
-	var reader = new FileReader();
-	reader.onloadend = function () {
-    let data = reader.result;
-    if (ext === 'gz'){
-      decompress(data).then((text)=>{
-        let json = JSON.parse(text);
+  return new Promise((resolve, reject)=>{
+    var reader = new FileReader();
+    reader.onloadend = function () {
+      let data = reader.result;
+      if (ext === 'gz'){
+        decompress(data).then((text)=>{
+          let json = JSON.parse(text);
+          processJson(json);
+          //setOptions();
+          setHighlight();
+          resolve();
+        });
+      } else {
+        let json = JSON.parse(data);
         processJson(json);
         //setOptions();
         setHighlight();
-        cb();
-      });
-    } else {
-      let json = JSON.parse(data);
-      processJson(json);
-      //setOptions();
-      setHighlight();
-      cb();
+        resolve();
+      }
     }
-	}
-	reader.onerror = function () {
-		cb();
-	}
-  if (ext === 'gz'){
-    reader.readAsArrayBuffer(file);
-  } else {
-    reader.readAsText(file);
-  }
+    reader.onerror = function (err) {
+      reject(err);
+    }
+    if (ext === 'gz'){
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
+  });
 }
 
 //////////////////////////////////////////////////////////////
@@ -2494,6 +2323,8 @@ function processJson(downloaddata){
 
   readConfig();
   config = Object.assign(config, downloaddata.config || {});
+  // ensure the readConfig in setOptions does not overwrite us...
+  setConfig();
   
   
   let sources = Object.keys(downloaddata.sources);
@@ -2540,8 +2371,6 @@ function processJson(downloaddata){
   pruneRSIDs(startRSIDs);
   pruneRSIDs(endRSIDs);
   
-  // ensure the readConfig in setOptions does not overwrite us...
-  setConfig();
   // needs data[]
   setOptions();
   // needs options set to set fromkit....
@@ -2550,17 +2379,7 @@ function processJson(downloaddata){
 }
 
 
-function loadFromBlob(dbdataContent){
-  dbdataContent.text().then((text)=>{
-    let json = JSON.parse(text);
-    processJson(json);
-    //setOptions();
-    setHighlight();
-    updateAll();
-  });
-}
-
-
+// returns textual content of a file
 function loadFileText(fileitem) {
 	var file = fileitem;
   return new Promise((resolve)=>{
@@ -2576,82 +2395,76 @@ function loadFileText(fileitem) {
 }
 
 
-
-function loadFile(fileitem, resolve, reject) {
-	var file = fileitem;
-	var reader = new FileReader();
-	reader.onloadend = function () {
-		addCsvInput().value = reader.result;
-		resolve('');
-	}
-	reader.onerror = function () {
-		reject(arguments);
-	}
-	reader.readAsText(file);
-}
-
-var matchesData = [];
-
-async function loadFile2(fileitem, resolve, reject) {
-	var file = fileitem;
-	var reader = new FileReader();
-	reader.onloadend = function () {
-		matchesData.push(reader.result);
-		resolve('');
-	}
-	reader.onerror = function () {
-		reject(arguments);
-	}
-	reader.readAsText(file);
-}
-
 async function dropHandler(ev) {
 	// Prevent default behavior (Prevent file from being opened)
 	ev.preventDefault();
 
 	var tasks = [];
+  
+  // note: ev may not survive await?
+  let items = ev.dataTransfer.items;
+  
+  // note: items and content of items does not survive await?
+  // so we must have a loop which starts all the asyn we need to do, then 
+  // wait of for all of them to complete before proceeding.
 
-	if (ev.dataTransfer.items) {
-		// Use DataTransferItemList interface to access the file(s)
-		for (var i = 0; i < ev.dataTransfer.items.length; i++) {
+	if (items) {
+    let files = [];
+    let tasks = [];
+		for (var i = 0; i < items.length; i++) {
 			// If dropped items aren't files, reject them
-			if (ev.dataTransfer.items[i].kind === 'file') {
-        let f = ev.dataTransfer.items[i].getAsFile();
-        let ext = f.name.toLowerCase().split('.').pop();
-        let fname = f.name;
-        if (ext === 'json' || ext === 'gz'){
-          filename = f.name;
-          ev.dataTransfer.items[i].getAsFileSystemHandle()
-            .then((h)=>{gzHandle = h;});
-          startWait('Loading '+filename);
-          loadJson(f, ext, ()=>{
-            document.getElementById('filename').innerHTML = "save <b>"+filename+"</b>";
-            updateAll();
-            endWait();
-          });
-        } else {
-          startWait('Loading '+fname);
-          filenames.push(fname);
-          setFilenames();
-          let text = await loadFileText(f);
-          await readCSV(text);
-        
-/*          var t = new Promise((resolve, reject) => {
-              loadFile(f, resolve, reject);
-            });
-          tasks.push(t);*/
+			if (items[i].kind === 'file') {
+        let item = items[i];
+        let file = item.getAsFile();
+        let f = {
+          file: file,
+          filename: file.name,
+          ext: file.name.toLowerCase().split('.').pop(),
+        };
+        files.push(f);
+        if (f.ext === 'gz'){
+          let task = new Promise((resolve, reject) => {
+            item.getAsFileSystemHandle()
+              .then((handle)=>{
+                f.handle = handle;
+                resolve();
+              });
+					});
+          tasks.push(task); 
         }
-			}
-		}
-	} else {
-		// Use DataTransfer interface to access the file(s)
-		for (var i = 0; i < ev.dataTransfer.files.length; i++) {
-			// console .log('... file[' + i + '].name = ' + ev.dataTransfer.files[i].name);
+      }
+    }
+
+    // we've done all synchronous processing
+    // Pass event to removeDragData for cleanup
+    removeDragData(ev)
+
+    // await any async we created to get gz handle
+    await Promise.all(tasks);
+    
+    
+    // we should now have all the things we need,
+    // and they shoudl survive await.
+		for (var i = 0; i < files.length; i++) {
+      let f = files[i].file;
+      let ext = files[i].ext;
+      let fname = files[i].filename;
+      if (ext === 'gz'){
+        // global filename used for save
+        filename = fname;
+        gzHandle = files[i].handle;
+        startWait('Loading '+filename);
+        await loadJson(f, ext);
+        document.getElementById('filename').innerHTML = "save <b>"+filename+"</b>";
+      } else {
+        startWait('Loading '+fname);
+        filenames.push(fname);
+        setFilenames();
+        let text = await loadFileText(f);
+        await readCSV(text);
+      }
 		}
 	}
-
-	// Pass event to removeDragData for cleanup
-	removeDragData(ev)
 
   if (refreshAll){
     recalcDataAll();
@@ -2666,39 +2479,6 @@ async function dropHandler(ev) {
   endWait();
 }
 
-function dropHandler2(ev) {
-	// Prevent default behavior (Prevent file from being opened)
-	ev.preventDefault();
-
-	var tasks = [];
-
-	if (ev.dataTransfer.items) {
-		// Use DataTransferItemList interface to access the file(s)
-		for (var i = 0; i < ev.dataTransfer.items.length; i++) {
-			// If dropped items aren't files, reject them
-			if (ev.dataTransfer.items[i].kind === 'file') {
-				var t = new Promise((resolve, reject) => {
-						loadFile2(ev.dataTransfer.items[i].getAsFile(), resolve, reject);
-					});
-				tasks.push(t);
-			}
-		}
-	} else {
-		// Use DataTransfer interface to access the file(s)
-		for (var i = 0; i < ev.dataTransfer.files.length; i++) {
-			// console .log('... file[' + i + '].name = ' + ev.dataTransfer.files[i].name);
-		}
-	}
-
-	// Pass event to removeDragData for cleanup
-	removeDragData(ev)
-
-	// Once all files are loaded
-	Promise.all(tasks).then((msg) => {
-		loadMatchesData();
-		//updateAll();
-	});
-}
 
 function removeDragData(ev) {
 	if (ev.dataTransfer.items) {
@@ -2710,7 +2490,12 @@ function removeDragData(ev) {
 	}
 }
 
-function showdiv(id) {
+function showdiv(ev, id) {
+
+  if (ev){
+    ev.stopPropagation();
+  }
+
 	var currentStyle = d3.select("#" + id).attr("style");
 	if (currentStyle === 'display: block;') {
 		d3.select("#" + id).attr("style", "display: none;");
@@ -2725,64 +2510,25 @@ function showdiv(id) {
 	}
 }
 
-function onFileSelect(e) {
-	if (!e.files) {
-		return;
-	}
 
-	loadAll(e.files, loadFile);
-}
-
-function loadAll(arr, f) {
-	var tasks = [];
-
-	for (var i=0; i<arr.length; i++) {
-		console.log(arr[i]);
-		var t = new Promise((resolve, reject) => {
-			f(arr[i], resolve, reject);
-		});
-		tasks.push(t);
-	}
-
-	// Once all files are loaded
-	Promise.all(tasks).then((msg) => {
-		loadData();
-		updateAll();
-	});
-}
-
-function loadURL(url, resolve, reject) {
-	d3.text(url, function (error, data) {
-			if (error) {
-				reject(url + error);
-			}
-			addCsvInput().value = data;
-			resolve('');
-		});
-}
-
-function getExistingFile(){
-    get('file').then((fileHandleOrUndefined)=>{
-      if (fileHandleOrUndefined) {
-        fileHandleOrUndefined.requestPermission({ mode : "readwrite" }).then((status)=>{
-          if (status){
-            pre.textContent =
-                `Retrieved file handle "${fileHandleOrUndefined.name}" from IndexedDB.`;
-            gzHandle = fileHandleOrUndefined;
-            gzHandle.getFile().then((f)=>{
-              filename = f.name;
-              let ext = f.name.toLowerCase().split('.').pop();
-              startWait('Loading '+filename);
-              loadJson(f, ext, ()=>{
-                document.getElementById('filename').innerHTML = "save <b>"+filename+"</b>";
-                updateAll();
-                endWait();
-              });
-            });
-          }
-        });
-      }
-    });
+async function getExistingFile(){
+  let fileHandleOrUndefined = await get('file');
+  if (fileHandleOrUndefined) {
+    let status = await fileHandleOrUndefined.requestPermission({ mode : "readwrite" });
+    if (status){
+      pre.textContent =
+          `Retrieved file handle "${fileHandleOrUndefined.name}" from IndexedDB.`;
+      gzHandle = fileHandleOrUndefined;
+      let f = await gzHandle.getFile();
+      filename = f.name;
+      let ext = f.name.toLowerCase().split('.').pop();
+      startWait('Loading '+filename);
+      await loadJson(f, ext);
+      document.getElementById('filename').innerHTML = "save <b>"+filename+"</b>";
+      updateAll();
+      endWait();
+    }
+  }
 }
 
 async function setExistingFile(){
@@ -2790,10 +2536,8 @@ async function setExistingFile(){
 }
 
 async function pageLoad() {
-	var urls = [];
-	showdiv('data');
+	showdiv(null, 'data');
 }
-
 
 await pageLoad();
 
