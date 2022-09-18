@@ -36,9 +36,8 @@ textarea {
 .filenames {
 	border: 2px dashed #000;
 	width:  450px;
-	height: 100px;
+	height: 300px;
 	float: left;
-	text-align: center;
 	margin: 0px 20px 0px 0px;
 }
 
@@ -138,6 +137,13 @@ nav {
 div a:link, div a:visited {
 	color: yellow;
 	font-weight: bold;
+}
+
+.cornerx {
+  position: absolute;
+  right: 10px;
+  top:10px;
+  
 }
 
 .container {
@@ -244,12 +250,12 @@ div a:link, div a:visited {
 
     </style>
   </head>
-  <body>
+  <body onkeydown="chrombrowser.keydown(event);">
 
     <header>
     </header>
 
-    <div class="fillbrowser" onclick="chrombrowser.showdiv(event, 'none');">
+    <div class="fillbrowser" onclick="chrombrowser.clickout(event);">
       <div class="tooltip" id="tooltip"></div>
       <div class="headermenu">
         <nav>
@@ -265,7 +271,7 @@ div a:link, div a:visited {
         </nav>
       </div>
       <div class="overlay">
-        <form id="myform" onsubmit="return false;" onclick="event.stopPropagation()">
+        <form id="myform" onsubmit="return false;" onclick="event.stopPropagation();">
             <div class="submenu">
               <div class="inputs" id="none">
                 <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
@@ -278,8 +284,8 @@ div a:link, div a:visited {
                   <p>&#128193; Drag one or more files here</p>
                 </div>
 
-                <div class="filenames" id="filenames">
-                </div>
+                <div class="filenames" id="filenames" contenteditable="true"></div>
+                
 
                 <div>
                   <pre id="pre"></pre>
@@ -387,16 +393,16 @@ div a:link, div a:visited {
       <div class="fillremainder container">
         <div id="divchrbrowser" style="position:relative;">
         </div>
-        <nav id="context-menu" class="context-menu">
+        <nav id="context-menu" class="context-menu" onclick="event.stopPropagation();">
           <h2 id="fullname"></h2><br/>
-          <span>Highlight:</span>
+          <span style="display:inline-block; width:10%;">Highlight:</span>
             <button onclick="chrombrowser.menuClick(event, 0)">All kit matches</button>
             <button onclick="chrombrowser.menuClick(event, 11)">All seg matches</button>
             <button onclick="chrombrowser.menuClick(event, 9)">All</button>
             <button onclick="chrombrowser.menuClick(event, 7)">All kit</button>
             <button onclick="chrombrowser.menuClick(event, 20)">This Seg</button>
           <br/>
-          <span>un-Highlight:</span>
+          <span style="display:inline-block; width:10%;">un-Highlight:</span>
             <button onclick="chrombrowser.menuClick(event, 1)">All kit matches</button>
             <button onclick="chrombrowser.menuClick(event, 12)">All seg matches</button>
             <button onclick="chrombrowser.menuClick(event, 10)">All</button>
@@ -407,6 +413,10 @@ div a:link, div a:visited {
           <button onclick="chrombrowser.menuClick(event, 3)"> View Tree <span id="treecount">0</span></button><br/>
           <button onclick="chrombrowser.menuClick(event, 4)"> Review Match</button><br/>
           <button onclick="chrombrowser.menuClick(event, 13)"> Ancestry member search</button><br/>
+          <span>Notes:</span><br/>
+          <div class="filenames" id="kitnotes" contenteditable="true"></div>
+          
+          <button class="cornerx" onclick="chrombrowser.toggleMenuOff()">X</button>
         </nav>
       </div>  
     </div>
@@ -451,7 +461,6 @@ var data = {};
 
 var gzHandle;
 var filename = '';
-var filenames = [];
 
 var matchesData = [];
 
@@ -578,6 +587,8 @@ async function downloadjson(){
 
 async function saveToDbjson(saveAs){
   readConfig();
+  let filenames = getFilenames();
+
   if (!filename || saveAs){
     // create a new handle
     const opts = {
@@ -608,7 +619,7 @@ async function saveToDbjson(saveAs){
   }
   downloaddata.kits = kits;
   downloaddata.matchesMeta = matchesMeta;
-  downloaddata.filenames = filenames;
+  downloaddata.notes = filenames;
   downloaddata.config = config;
   
   let gz = await compress(JSON.stringify(downloaddata, null, ' '));
@@ -688,8 +699,10 @@ function sortBySegment(data, fcmp) {
 	};
 }
 
+let contextkit;
 
 function contextMenu(e) {
+  e.stopPropagation();
   console.log('Context', e);
   let taskItemInContext = e.target;
 
@@ -698,7 +711,11 @@ function contextMenu(e) {
     menuSegid = taskItemInContext.id;
     
     let kit = getKitFromSeg(menuSegid);
-    if (!kit) return;
+    if (!kit) {
+      clickout(e);
+      return;
+    }
+    contextkit = kit;
     let treecountel = document.getElementById('treecount');
     if (matchesMeta[kit] && matchesMeta[kit]['Number of individuals in the tree']){
         treecountel.innerHTML = matchesMeta[kit]['Number of individuals in the tree'];
@@ -708,6 +725,13 @@ function contextMenu(e) {
     
     let nameel = document.getElementById('fullname');
     nameel.innerHTML = kits[kit].name;
+
+    let notesel = document.getElementById('kitnotes');
+    if (kits[kit] && kits[kit].notes){
+      notesel.innerHTML = kits[kit].notes;
+    } else {
+      notesel.innerHTML = '';
+    }
     
     toggleMenuOn();
     positionMenu(e);
@@ -734,6 +758,10 @@ function contextMenu(e) {
     if ( menuState !== 0 ) {
       menuState = 0;
       menu.classList.remove( contextMenuActive );
+      let notesel = document.getElementById('kitnotes');
+      if (kits[contextkit]){
+        kits[contextkit].notes = notesel.innerHTML;
+      }
     }
   }
 
@@ -2135,9 +2163,9 @@ function updateDivDisplay() {
       newdiv.style.border = '2px solid black';
       newdiv.style.margin = '0';
       newdiv.style.padding = '0';
-      newdiv.addEventListener('click', clickSeg);
-      newdiv.addEventListener('dblclick', dblClickSeg);
-      newdiv.addEventListener('contextmenu', contextMenu);
+      newdiv.addEventListener('click', contextMenu);
+//      newdiv.addEventListener('dblclick', dblClickSeg);
+//      newdiv.addEventListener('contextmenu', contextMenu);
       newdiv.style.transform = "translate(20px, 0px)"
 
       // only display if not filtered by chromosome
@@ -2299,15 +2327,23 @@ function decompress(byteArray) {
 }
 //////////////////////////////////////////////////////////////
 
-function setFilenames(){
+function setFilenames(filenamesarray){
   let txt = '';
-  for (let i = 0; i < filenames.length; i++){
-    txt += filenames[i];
-    txt += '<br/>';
+  for (let i = 0; i < filenamesarray.length; i++){
+    txt += filenamesarray[i];
+    txt += '\n';
   }
  
-  document.getElementById('filenames').innerHTML = txt;
+  let curr = document.getElementById('filenames').innerText;
+  if (curr) curr += '\n';
+  document.getElementById('filenames').innerText = curr + txt;
 }
+function getFilenames(){
+  let txt = document.getElementById('filenames').innerText;
+  return txt;
+}
+
+
 
 function processJson(downloaddata){
   matchesMeta = downloaddata.matchesMeta || {};
@@ -2315,9 +2351,8 @@ function processJson(downloaddata){
   
   data = {};
   segids = {};
-  filenames = downloaddata.filenames;
   
-  setFilenames();
+  document.getElementById('filenames').innerText = downloaddata.notes;
   
   let all = [];
 
@@ -2401,6 +2436,8 @@ async function dropHandler(ev) {
 
 	var tasks = [];
   
+  let filenames = [];
+  
   // note: ev may not survive await?
   let items = ev.dataTransfer.items;
   
@@ -2459,7 +2496,6 @@ async function dropHandler(ev) {
       } else {
         startWait('Loading '+fname);
         filenames.push(fname);
-        setFilenames();
         let text = await loadFileText(f);
         await readCSV(text);
       }
@@ -2474,6 +2510,8 @@ async function dropHandler(ev) {
     recalcDataCommon();
     refreshCommon = false;
   }
+
+  setFilenames(filenames);
   
   updateAll();
   endWait();
@@ -2539,6 +2577,20 @@ async function pageLoad() {
 	showdiv(null, 'data');
 }
 
+function keydown(ev){
+  switch(ev.key){
+    case 'Escape':
+      showdiv(null, 'none');
+      toggleMenuOff();
+      break;
+  }
+}
+
+function clickout(event) {
+  showdiv(event, 'none');
+  toggleMenuOff();
+}
+
 await pageLoad();
 
 let module = {
@@ -2553,6 +2605,11 @@ let module = {
   updateViewType,
   updatePosn,
   updateCm,
+  keydown,
+  toggleMenuOff,
+  clickout,
+  
+  
 };
 
 window.chrombrowser = module;
