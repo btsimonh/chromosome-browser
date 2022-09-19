@@ -41,6 +41,18 @@ textarea {
 	margin: 0px 20px 0px 0px;
 }
 
+.notescontainer {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+}
+
+.notes {
+	border: 2px dashed #000;
+	width:  40vw;
+	height: 300px;
+	margin: 0px 20px 0px 0px;
+}
+
 input[type=number]{
     width: 70px;
 	font-size: 16px;
@@ -179,7 +191,7 @@ div a:link, div a:visited {
   position: relative;
   z-index: 10;
   padding: 2px 0;
-  /*width: fit-content;*/
+  width: 90vw;
   background-color: #fff;
   border: solid 1px #dfdfdf;
   box-shadow: 1px 1px 2px #cfcfcf;
@@ -380,6 +392,8 @@ div a:link, div a:visited {
                 <option value="all" selected="selected">All</option>
                 <option value="coloured">Solid Colour</option>
               </select>
+              <br/><br/>
+              <button onclick="chrombrowser.refresh();">Refresh</button>
 
             </div>
             <div class="inputs" id="about">
@@ -394,7 +408,12 @@ div a:link, div a:visited {
         <div id="divchrbrowser" style="position:relative;">
         </div>
         <nav id="context-menu" class="context-menu" onclick="event.stopPropagation();">
-          <h2 id="fullname"></h2><br/>
+          <p><b id="fullname"></b></p>
+          <p id="selectedsegment"></p>
+          <span>KitTag:</span><input type="text" id="kittag">
+          <br/>
+          <span>SegTag:</span><input type="text" id="segtag">
+          <br/>
           <span style="display:inline-block; width:10%;">Highlight:</span>
             <button onclick="chrombrowser.menuClick(event, 0)">All kit matches</button>
             <button onclick="chrombrowser.menuClick(event, 11)">All seg matches</button>
@@ -413,9 +432,17 @@ div a:link, div a:visited {
           <button onclick="chrombrowser.menuClick(event, 3)"> View Tree <span id="treecount">0</span></button><br/>
           <button onclick="chrombrowser.menuClick(event, 4)"> Review Match</button><br/>
           <button onclick="chrombrowser.menuClick(event, 13)"> Ancestry member search</button><br/>
-          <span>Notes:</span><br/>
-          <div class="filenames" id="kitnotes" contenteditable="true"></div>
-          
+          <div class="notescontainer">
+            <div>
+              <span>Notes:</span><br/>
+              <div class="notes" id="kitnotes" contenteditable="true"></div>
+            </div>
+            
+            <div>
+              <span>Segments:</span><br/>
+              <div class="notes" id="kitsegs"></div>
+            </div>
+          </div>
           <button class="cornerx" onclick="chrombrowser.toggleMenuOff()">X</button>
         </nav>
       </div>  
@@ -466,6 +493,8 @@ var matchesData = [];
 
 var refreshAll = false;
 var refreshCommon = false;
+
+let selectedSeg;
 
 // kits = {
 //   "AZ123": {"name": "John Doe", "email": "a@b.c", "color": "..."},
@@ -715,6 +744,16 @@ function contextMenu(e) {
       clickout(e);
       return;
     }
+    
+    if (selectedSeg){
+      segdivs[selectedSeg].style.color = 'black';
+    }
+    selectedSeg = menuSegid;
+    segdivs[selectedSeg].style.color = 'red';
+
+    let menuseg = segids[selectedSeg];
+    
+
     contextkit = kit;
     let treecountel = document.getElementById('treecount');
     if (matchesMeta[kit] && matchesMeta[kit]['Number of individuals in the tree']){
@@ -725,12 +764,37 @@ function contextMenu(e) {
     
     let nameel = document.getElementById('fullname');
     nameel.innerHTML = kits[kit].name;
+    
+    let segel = document.getElementById('selectedsegment');
+    segel.innerHTML = 
+      kits[menuseg.kitFrom].name+': ' +
+      menuseg.chr+': '+menuseg.start+'-'+menuseg.end;
+    
+    let tagel = document.getElementById('kittag');
+    tagel.value = kits[kit].tag || '';
+    let segtagel = document.getElementById('segtag');
+    segtagel.value = segids[selectedSeg].tag || '';
 
     let notesel = document.getElementById('kitnotes');
     if (kits[kit] && kits[kit].notes){
       notesel.innerHTML = kits[kit].notes;
     } else {
       notesel.innerHTML = '';
+    }
+    
+    let segsel = document.getElementById('kitsegs');
+    if (kits[kit] && kits[kit].segs){
+      let segs = Object.keys(kits[kit].segs);
+      let txt = '';
+      for (let i = 0; i < segs.length; i++){
+        let seg = segids[segs[i]];
+        txt += kits[seg.kitFrom].name+': ';
+        txt += seg.chr+': '+seg.start+'-'+seg.end;
+        txt += '<br/>';
+      }
+      segsel.innerHTML = txt;
+    } else {
+      segsel.innerHTML = '';
     }
     
     toggleMenuOn();
@@ -759,8 +823,33 @@ function contextMenu(e) {
       menuState = 0;
       menu.classList.remove( contextMenuActive );
       let notesel = document.getElementById('kitnotes');
+      let tagel = document.getElementById('kittag');
+      let segtagel = document.getElementById('segtag');
+      let segdiv = segdivs[selectedSeg];
+      let seg = segids[selectedSeg];
+      let setkits = false;
       if (kits[contextkit]){
         kits[contextkit].notes = notesel.innerHTML;
+        if (tagel.value){
+          if (kits[contextkit].tag !== tagel.value){
+            setkits = true;
+            kits[contextkit].tag = tagel.value;
+          }
+        } else {
+          delete kits[contextkit].tag;
+        }
+        if (segtagel.value){
+          segids[selectedSeg].tag = segtagel.value;
+        } else {
+          delete segids[selectedSeg].tag;
+        }
+        
+        let prefix = tagel.value+segtagel.value;
+        
+        segdiv.innerHTML = prefix + (kits[seg.kitTo].name || seg.kitTo);
+      }
+      if (setkits){
+        updatePosn();
       }
     }
   }
@@ -771,19 +860,24 @@ function contextMenu(e) {
    * @param {Object} e The event
    */
   function positionMenu(e) {
-    let windowWidth = window.innerWidth;
-    let windowHeight = window.innerHeight;
+    //let windowWidth = window.innerWidth;
+    //let windowHeight = window.innerHeight;
 
     menu.style.position = 'fixed';
     menu.style.zIndex = 2000;
-    menu.style.top = windowHeight*0.05+'px';
-    menu.style.left = windowWidth*0.05+'px';
-    menu.style.width = windowWidth*0.9+'px';
-    menu.style.height = windowHeight*0.9+'px';
+    menu.style.top = '5vh';
+    menu.style.left = '5vw';
+    menu.style.width = '90vw';
+    menu.style.height = '90vh';
   }
 
+function refresh() {
+  width = getWidth() * 0.95;
+  updatePosn();
+}
+  
 function menuClick(ev, item){
-  toggleMenuOff();
+  //toggleMenuOff();
 
   let segid = menuSegid;
   let kit = getKitFromSeg(segid);
@@ -1036,6 +1130,7 @@ function csvParse(text) {
         outlineColour: cat20(e.kitFrom),
         kits:{},
         index: kitindex++,
+        segs:{},
 			};
       if (emailFrom){
 				kits[e.kitFrom].email = emailFrom;
@@ -1054,6 +1149,7 @@ function csvParse(text) {
         "opacity": opacity,
         kits:{},
         index: kitindex++,
+        segs:{},
 			};
       if (emailTo){
         kits[e.kitTo].email = emailTo;
@@ -1073,12 +1169,7 @@ function csvParse(text) {
     }
 
 		e.row = 0;
-		e.id = Math.random().toString(36);
-    
-    segids[e.id] = e;
-
 		d = null;
-
     segments.push(e);
 		return e;
 	});
@@ -1305,6 +1396,11 @@ function readCSV(text){
       }
       
       mergeKits(dataRead);
+      
+      for (let i = 0; i < dataRead.segments.length; i++){
+        let s = dataRead.segments[i];
+        kits[s.kitTo].segs[segId] = true;
+      }
       
       refreshAll = true;
       refreshCommon = true;
@@ -1804,6 +1900,10 @@ function mouseover2(ev) {
   str += "kitTo " + d.kitTo + name + "<br/>"+
     "kitFrom " + d.kitFrom + fromName + "<br/>"+
     "This segment " + d.cm.toFixed(1) + " cM";
+
+  if (kits[d.kitTo].notes){
+    str += '<br/>'+kits[d.kitTo].notes;
+  }
     
   tooltipDiv.innerHTML = str;
   
@@ -2023,8 +2123,7 @@ function addSegments(div, chrom, chromwidth) {
       newdiv.style.padding = '0';
       newdiv.style.border = '0';
       newdiv.style.overflow = 'hidden';
-      newdiv.innerHTML = kits[d.kitTo].name || d.kitTo;
-      newdiv.style.outline =  '1px solid '+kits[d.kitFrom].outlineColour;
+      newdiv.style.outline =  '3px solid '+kits[d.kitFrom].outlineColour;
       newdiv.style.position = 'absolute';
       if (!kits[d.kitTo].color) kits[d.kitTo].color = cat20(d.kitTo);
       newdiv.style.backgroundColor = kits[d.kitTo].color;
@@ -2032,6 +2131,21 @@ function addSegments(div, chrom, chromwidth) {
 
       newdiv.addEventListener('mouseover', mouseover2);//(event) => {mouseover(event, d);});
       newdiv.addEventListener('mouseout', mouseout);
+      
+      let name = kits[d.kitTo].name || d.kitTo;
+      let prefix = (kits[d.kitTo].tag || '') + (d.tag || '');
+      switch (config.nametype){
+        case 'name':
+          break;
+        case 'kit':
+          name = d.kitTo;
+          break;
+        case 'index':
+          name = kits[d.kitTo].index;
+          break;
+      }
+      newdiv.innerHTML = prefix+name;
+      
     }
     div.append(newdiv);
   }
@@ -2237,6 +2351,7 @@ function updatePosn(){
           if (div.style.width !== width) div.style.width = width;
           if (div.style.left !== left) div.style.left = left;
           let name = kits[d.kitTo].name;
+          let prefix = (kits[d.kitTo].tag || '') + (d.tag || '');
           switch (config.nametype){
             case 'name':
               break;
@@ -2247,8 +2362,8 @@ function updatePosn(){
               name = kits[d.kitTo].index;
               break;
           }
-          if (div.innerHTML !== name){
-            div.innerHTML = name;
+          if (div.innerHTML !== prefix+name){
+            div.innerHTML = prefix+name;
           }
         }
       }
@@ -2371,10 +2486,15 @@ function processJson(downloaddata){
       segids[seg.id] = seg;
     }
   }
+
+  // clears segs for rebuild;
+  let ks = Object.keys(kits);
+  for (let i = 0; i < ks.length; i++){
+    kits[ks[i]].segs = {};
+  }
   
   let common = [];
   let kitfroms = Object.keys(data);
-  
 
   for (let i = 0; i < all.length; i++){
     let both = true;
@@ -2397,6 +2517,8 @@ function processJson(downloaddata){
     if (both){
       common.push(seg);
     }
+    
+    kits[seg.kitTo].segs[seg.id] = true;
   }
 
   data['all'] = all;
@@ -2608,11 +2730,22 @@ let module = {
   keydown,
   toggleMenuOff,
   clickout,
+  refresh,
   
   
 };
 
 window.chrombrowser = module;
+
+let resizeTimer;
+window.onresize = ()=>{
+  if (!resizeTimer){
+    resizeTimer = setTimeout(()=>{
+      resizeTimer = null;
+      refresh();
+    }, 200);
+  }
+}
 
 </script>
 	</body>
