@@ -43,14 +43,15 @@ textarea {
 
 .notescontainer {
   display: inline-grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: auto auto auto;
 }
 
 .notes {
 	border: 2px dashed #000;
-	width:  40vw;
+	width:  25vw;
 	height: 300px;
 	margin: 0px 20px 0px 0px;
+  overflow: scroll;
 }
 
 input[type=number]{
@@ -303,6 +304,9 @@ div a:link, div a:visited {
                   <pre id="pre"></pre>
                   <button onclick="chrombrowser.getExistingFile();">Load Last File</button>
                 </div>
+                <div>
+                  <span>Ancestry URL:</span><input type="text" id="ancestryurl">
+                </div>
                   
               </div>
             </div>
@@ -414,6 +418,10 @@ div a:link, div a:visited {
           <br/>
           <span>SegTag:</span><input type="text" id="segtag">
           <br/>
+          <span>Ancestry Kit ID:</span><input type="text" id="ancestryid">
+          <br/>
+          <span>GedMatch Kit ID:</span><input type="text" id="gedmatchid">
+          <br/>
           <span style="display:inline-block; width:10%;">Highlight:</span>
             <button onclick="chrombrowser.menuClick(event, 0)">All kit matches</button>
             <button onclick="chrombrowser.menuClick(event, 11)">All seg matches</button>
@@ -429,9 +437,11 @@ div a:link, div a:visited {
             <button onclick="chrombrowser.menuClick(event, 21)">This Seg</button>
           <br/>
           <!--<button onclick="menuClick(event, 2)"> Download Interesting Matches</button><br/>-->
-          <button onclick="chrombrowser.menuClick(event, 3)"> View Tree <span id="treecount">0</span></button><br/>
-          <button onclick="chrombrowser.menuClick(event, 4)"> Review Match</button><br/>
-          <button onclick="chrombrowser.menuClick(event, 13)"> Ancestry member search</button><br/>
+          <button onclick="chrombrowser.menuClick(event, 3)"> MH View Tree <span id="treecount">0</span></button>
+          <button onclick="chrombrowser.menuClick(event, 4)"> MH Review Match</button><br/>
+          <button onclick="chrombrowser.menuClick(event, 13)"> Ancestry member search</button>
+          <button onclick="chrombrowser.menuClick(event, 31)"> Ancestry Match Name Search</button>
+          <br/>
           <div class="notescontainer">
             <div>
               <span>Notes:</span><br/>
@@ -441,6 +451,10 @@ div a:link, div a:visited {
             <div>
               <span>Segments:</span><br/>
               <div class="notes" id="kitsegs"></div>
+            </div>
+            <div>
+              <span>Surnames:</span><br/>
+              <div class="notes" id="surnames"></div>
             </div>
           </div>
           <button class="cornerx" onclick="chrombrowser.toggleMenuOff()">X</button>
@@ -495,6 +509,7 @@ var refreshAll = false;
 var refreshCommon = false;
 
 let selectedSeg;
+
 
 // kits = {
 //   "AZ123": {"name": "John Doe", "email": "a@b.c", "color": "..."},
@@ -554,6 +569,7 @@ let config = {
   excludekits: [],
   minCm: 5,
   maxCm: 1000,
+  ancestryurl: 'www.ancestry.co.uk',
 };
 
 
@@ -773,13 +789,36 @@ function contextMenu(e) {
     let tagel = document.getElementById('kittag');
     tagel.value = kits[kit].tag || '';
     let segtagel = document.getElementById('segtag');
-    segtagel.value = segids[selectedSeg].tag || '';
+    segtagel.value = menuseg.tag || '';
 
+    let ancestryidel = document.getElementById('ancestryid');
+    ancestryidel.value = kits[kit].ancestryid || '';
+    
+    let gedmatchidel = document.getElementById('gedmatchid');
+    gedmatchidel.value = kits[kit].gedmatchid || '';
+    
+    
     let notesel = document.getElementById('kitnotes');
     if (kits[kit] && kits[kit].notes){
       notesel.innerHTML = kits[kit].notes;
     } else {
       notesel.innerHTML = '';
+    }
+    
+    let surnamesel = document.getElementById('surnames');
+    if (matchesMeta[kit] && matchesMeta[kit]['All ancestral surnames']){
+      let surnames = matchesMeta[kit]['All ancestral surnames'].split(',');
+      let html = '';
+      for (let i = 0; i < surnames.length; i++){
+        html += surnames[i];
+        if (kits[menuseg.kitFrom].ancestryid){
+          html += ' <a target="_blank" href="'+getAncestrySurnameUrl(menuseg.kitFrom, surnames[i])+'">A</a>';
+        }
+        html += '<br/>';
+      }
+      surnamesel.innerHTML = html;
+    } else {
+      surnamesel.innerHTML = '';
     }
     
     let segsel = document.getElementById('kitsegs');
@@ -825,6 +864,10 @@ function contextMenu(e) {
       let notesel = document.getElementById('kitnotes');
       let tagel = document.getElementById('kittag');
       let segtagel = document.getElementById('segtag');
+      let ancestryidel = document.getElementById('ancestryid');
+      let gedmatchidel = document.getElementById('gedmatchid');
+
+
       let segdiv = segdivs[selectedSeg];
       let seg = segids[selectedSeg];
       let setkits = false;
@@ -842,6 +885,16 @@ function contextMenu(e) {
           segids[selectedSeg].tag = segtagel.value;
         } else {
           delete segids[selectedSeg].tag;
+        }
+        if (ancestryidel.value){
+          kits[contextkit].ancestryid = ancestryidel.value;
+        } else {
+          delete kits[contextkit].ancestryid;
+        }
+        if (gedmatchidel.value){
+          kits[contextkit].gedmatchid = gedmatchidel.value;
+        } else {
+          delete kits[contextkit].gedmatchid;
         }
         
         let prefix = tagel.value+segtagel.value;
@@ -960,6 +1013,13 @@ function menuClick(ev, item){
       break;
     }
     
+    case 31:{
+      if (kits[seg.kitFrom].ancestryid){
+        searchAncestryMatchName(seg.kitFrom, kits[seg.kitTo].name);
+      } else {
+        alert('add an ancestry kit id to '+kits[seg.kitFrom].name);
+      }
+    } break;
   }
   setHighlight();
 }
@@ -1849,7 +1909,7 @@ function getWidth() {
 
 function ancestryMemberSearch(name){
   var a = document.createElement('a');
-  a.href = `https://www.ancestry.co.uk/community/membersearch?q=${name.split(' ').join('+')}&page=1`;
+  a.href = `https://${config.ancestryurl}/community/membersearch?q=${name.split(' ').join('+')}&page=1`;
   a.target = '_blank';
   a.click();
 }
@@ -2185,6 +2245,8 @@ function readConfig(){
 	config.excludekits = document.getElementById("excludekits").value.split('\n').filter(e => e.length > 0);
 	config.minCm = document.getElementById("minCm").value || 5;
 	config.maxCm = document.getElementById("maxCm").value || 1000;
+  
+  config.ancestryurl = document.getElementById("ancestryurl").value || 'www.ancestry.co.uk';
 }
 
 function setConfig(){
@@ -2199,6 +2261,8 @@ function setConfig(){
   document.getElementById("excludekits").value = config.excludekits.join('\n');
 	document.getElementById("minCm").value = config.minCm;
 	document.getElementById("maxCm").value = config.maxCm;
+  
+  document.getElementById("ancestryurl").value = config.ancestryurl  || 'www.ancestry.co.uk';
 }
 
 
@@ -2651,11 +2715,13 @@ function removeDragData(ev) {
 }
 
 function showdiv(ev, id) {
-
+  
   if (ev){
     ev.stopPropagation();
   }
 
+  readConfig();
+  
 	var currentStyle = d3.select("#" + id).attr("style");
 	if (currentStyle === 'display: block;') {
 		d3.select("#" + id).attr("style", "display: none;");
@@ -2745,6 +2811,55 @@ window.onresize = ()=>{
       refresh();
     }, 200);
   }
+}
+
+
+////////////////////////////////////////////////////
+// searching Ancestry matches:
+// searchlocation=London,%20London,%20England
+// searchsurname
+// searchmatchname
+
+// not used for the moment.... since we don't necessarily have surnames
+function searchAncestryMatchesSurname(kit, name){
+  let ancestrymatchid = kits[kit].ancestryid;
+  if (!ancestrymatchid) return;
+  let url = `https://${config.ancestryurl}/discoveryui-matches/list/${ancestrymatchid}?searchsurname=${name}`;
+  if (url){
+    var a = document.createElement('a');
+    a.href = url;
+    a.target = '_Blank';
+    a.click();
+  }
+}
+
+function searchAncestryMatchName(kit, name){
+  let ancestrymatchid = kits[kit].ancestryid;
+  if (!ancestrymatchid) return;
+  let url = `https://${config.ancestryurl}/discoveryui-matches/list/${ancestrymatchid}?searchmatchname=${name}`;
+  if (url){
+    var a = document.createElement('a');
+    a.href = url;
+    a.target = '_Blank';
+    a.click();
+  }
+}
+
+function getAncestrySurnameUrl(kit, name){
+  let ancestrymatchid = kits[kit].ancestryid;
+  if (!ancestrymatchid) return '';
+  let url = `https://${config.ancestryurl}/discoveryui-matches/list/${ancestrymatchid}?searchsurname=${name}`;
+  return url;
+}
+
+////////////////////////////////////////////////////
+
+let isDirty = true;
+window.onbeforeunload = function() {
+  if (isDirty) {
+    return 'There is unsaved data.';
+  }
+  return undefined;
 }
 
 </script>
