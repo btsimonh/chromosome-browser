@@ -147,10 +147,16 @@ nav {
 .chrbox {
 }
 
-div a:link, div a:visited {
+a:link, a:visited {
+	color: blue;
+	font-weight: bold;
+}
+
+.headermenu a:link, .headermenu a:visited {
 	color: yellow;
 	font-weight: bold;
 }
+
 
 .cornerx {
   position: absolute;
@@ -163,12 +169,30 @@ div a:link, div a:visited {
   height:70vh;
 }
 
-.hastree::before {
-  content: "*";
+.segment {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  overflow: hidden;
   position: absolute;
-  font-size: 50%;
-  color: white;
+  white-space: nowrap;
+  padding-left:1ch;
 }
+
+.hastree::before {
+  content: "#";
+  position: absolute;
+  color: white;
+  left:0;
+}
+
+.marked::after {
+  content: "#";
+  position: absolute;
+  right:0;
+  color: lime;
+}
+
 
 .wait {
   display: none;
@@ -307,6 +331,8 @@ div a:link, div a:visited {
                 <div>
                   <span>Ancestry URL:</span><input type="text" id="ancestryurl">
                 </div>
+                <div id="totalsegments">
+                </div>
                   
               </div>
             </div>
@@ -422,6 +448,11 @@ div a:link, div a:visited {
           <br/>
           <span>GedMatch Kit ID:</span><input type="text" id="gedmatchid">
           <br/>
+          <span style="display:inline-block; width:10%;">Mark Seg:</span>
+          <input type="checkbox" id="markseg"/>
+          <span style="display:inline-block; width:10%;">Mark Kit:</span>
+          <input type="checkbox" id="markkit"/>
+          <br/>
           <span style="display:inline-block; width:10%;">Highlight:</span>
             <button onclick="chrombrowser.menuClick(event, 0)">All kit matches</button>
             <button onclick="chrombrowser.menuClick(event, 11)">All seg matches</button>
@@ -438,9 +469,11 @@ div a:link, div a:visited {
           <br/>
           <!--<button onclick="menuClick(event, 2)"> Download Interesting Matches</button><br/>-->
           <button onclick="chrombrowser.menuClick(event, 3)"> MH View Tree <span id="treecount">0</span></button>
-          <button onclick="chrombrowser.menuClick(event, 4)"> MH Review Match</button><br/>
+          <button onclick="chrombrowser.menuClick(event, 4)"> MH Review Match</button>
+          <br/>
           <button onclick="chrombrowser.menuClick(event, 13)"> Ancestry member search</button>
           <button onclick="chrombrowser.menuClick(event, 31)"> Ancestry Match Name Search</button>
+          <span id="compare"></span>
           <br/>
           <div class="notescontainer">
             <div>
@@ -784,7 +817,7 @@ function contextMenu(e) {
     let segel = document.getElementById('selectedsegment');
     segel.innerHTML = 
       kits[menuseg.kitFrom].name+': ' +
-      menuseg.chr+': '+menuseg.start+'-'+menuseg.end;
+      menuseg.chr+': '+menuseg.start+'-'+menuseg.end+' '+menuseg.cm+'cM';
     
     let tagel = document.getElementById('kittag');
     tagel.value = kits[kit].tag || '';
@@ -804,6 +837,18 @@ function contextMenu(e) {
     } else {
       notesel.innerHTML = '';
     }
+    let markkitsel = document.getElementById('markkit');
+    if (kits[kit] && kits[kit].marked){
+      markkitsel.checked = kits[kit].marked;
+    } else {
+      markkitsel.checked = false;
+    }
+    let marksegsel = document.getElementById('markseg');
+    if (menuseg && menuseg.marked){
+      marksegsel.checked = menuseg.marked;
+    } else {
+      marksegsel.checked = false;
+    }
     
     let surnamesel = document.getElementById('surnames');
     if (matchesMeta[kit] && matchesMeta[kit]['All ancestral surnames']){
@@ -821,6 +866,14 @@ function contextMenu(e) {
       surnamesel.innerHTML = '';
     }
     
+    let compareel = document.getElementById('compare');
+    if (kits[menuseg.kitFrom].ancestryid && kits[kit].ancestryid){
+      let html = `<a target="_blank" href="${getAncestryCompareUrl(menuseg.kitFrom, kit)}">Ancestry Compare ${kits[menuseg.kitFrom].name} with ${kits[kit].name}</a>`;
+      compareel.innerHTML = html;
+    } else {
+      compareel.innerHTML = '';
+    }
+    
     let segsel = document.getElementById('kitsegs');
     if (kits[kit] && kits[kit].segs){
       let segs = Object.keys(kits[kit].segs);
@@ -828,7 +881,7 @@ function contextMenu(e) {
       for (let i = 0; i < segs.length; i++){
         let seg = segids[segs[i]];
         txt += kits[seg.kitFrom].name+': ';
-        txt += seg.chr+': '+seg.start+'-'+seg.end;
+        txt += seg.chr+': '+seg.start+'-'+seg.end+' '+seg.cm+'cM';
         txt += '<br/>';
       }
       segsel.innerHTML = txt;
@@ -866,11 +919,13 @@ function contextMenu(e) {
       let segtagel = document.getElementById('segtag');
       let ancestryidel = document.getElementById('ancestryid');
       let gedmatchidel = document.getElementById('gedmatchid');
-
+      let markkitsel = document.getElementById('markkit');
+      let marksegsel = document.getElementById('markseg');
 
       let segdiv = segdivs[selectedSeg];
       let seg = segids[selectedSeg];
       let setkits = false;
+      let setKitMarked = false;
       if (kits[contextkit]){
         kits[contextkit].notes = notesel.innerHTML;
         if (tagel.value){
@@ -896,6 +951,24 @@ function contextMenu(e) {
         } else {
           delete kits[contextkit].gedmatchid;
         }
+
+        if (markkitsel.checked != kits[contextkit].marked){
+          if (markkitsel.checked){
+            kits[contextkit].marked = true;
+          } else {
+            delete kits[contextkit].marked;
+          }
+          setKitMarked = true;
+        }
+        if (marksegsel.checked != seg.marked) {
+          if (marksegsel.checked){
+            seg.marked = true;
+            segdiv.classList.add('marked');
+          } else {
+            delete seg.marked;
+            segdiv.classList.remove('marked');
+          }
+        }
         
         let prefix = tagel.value+segtagel.value;
         
@@ -903,6 +976,9 @@ function contextMenu(e) {
       }
       if (setkits){
         updatePosn();
+      }
+      if (setKitMarked){
+        setHighlight();
       }
     }
   }
@@ -1503,8 +1579,30 @@ function recalcDataAll(){
     }
   }
   data['all'] = all;
+  
+  setSegmentCounts();
 }
 
+
+function setSegmentCounts(){
+  let totalsegmentsel = document.getElementById('totalsegments');
+  let txt = '';
+  let grps = Object.keys(data);
+  for (let i =0; i < grps.length; i++){
+    txt += grps[i]+' segments: '+data[grps[i]].length;
+    txt += '<br/>';
+  }
+  let cnt = 0;
+  for (let i =0; i < filteredData.length; i++){
+    cnt += filteredData[i].segments.length;
+  }
+  
+  txt += 'Filtered segments: '+cnt;
+  txt += '<br/>';
+  
+  totalsegmentsel.innerHTML = txt;
+  
+}
 
 
 function recalcDataCommon(){
@@ -1538,9 +1636,8 @@ function recalcDataCommon(){
     }
   }
   setOptions();
+  setSegmentCounts();
 }
-
-
 
 
 function loadData() {
@@ -1625,6 +1722,7 @@ function loadData() {
   
   //highlightKits();
   setHighlight();
+  setSegmentCounts();
 }
 
 
@@ -2127,15 +2225,26 @@ function setHighlight(){
   // highlight segs from kit highlight only.
   for (let s = 0; s < segments.length; s++){
     let seg = segments[s];
+    let segdiv = segdivs[seg.id];
     let highlight = true; //kits[seg.kitTo].highlight; // default to kit highlight
     if (seg.mark === 'always') highlight = true;
     if (seg.mark === 'never') highlight = false;
     let opacity = highlight? 1.0:0.5;
-    if (segdivs[seg.id] && (+segdivs[seg.id].style.opacity) != opacity){
-      segdivs[seg.id].style.opacity = opacity;
+    if (segdiv){
+      if ((+segdiv.style.opacity) != opacity){
+        segdiv.style.opacity = opacity;
+      }
+      if (seg.marked || kits[seg.kitTo].marked){
+        segdiv.classList.add('marked');
+      } else {
+        segdiv.classList.remove('marked');
+      }
     }
     //kits[seg.kitTo].opacity = opacity;
   }
+  
+  setSegmentCounts();
+  
 }
 
 
@@ -2179,15 +2288,12 @@ function addSegments(div, chrom, chromwidth) {
     }
     
     if (isnew) {
-      newdiv.style.margin = '0';
-      newdiv.style.padding = '0';
-      newdiv.style.border = '0';
-      newdiv.style.overflow = 'hidden';
+      
       newdiv.style.outline =  '3px solid '+kits[d.kitFrom].outlineColour;
-      newdiv.style.position = 'absolute';
       if (!kits[d.kitTo].color) kits[d.kitTo].color = cat20(d.kitTo);
       newdiv.style.backgroundColor = kits[d.kitTo].color;
-      newdiv.style.whiteSpace = "nowrap";
+      
+      newdiv.classList.add('segment');
 
       newdiv.addEventListener('mouseover', mouseover2);//(event) => {mouseover(event, d);});
       newdiv.addEventListener('mouseout', mouseout);
@@ -2851,6 +2957,15 @@ function getAncestrySurnameUrl(kit, name){
   let url = `https://${config.ancestryurl}/discoveryui-matches/list/${ancestrymatchid}?searchsurname=${name}`;
   return url;
 }
+
+function getAncestryCompareUrl(kit1, kit2){
+  let ancestrymatchid1 = kits[kit1].ancestryid;
+  let ancestrymatchid2 = kits[kit2].ancestryid;
+  if (!ancestrymatchid1 || !ancestrymatchid2) return '';
+  let url = `https://${config.ancestryurl}/discoveryui-matches/compare/${ancestrymatchid1}/with/${ancestrymatchid2}`;
+  return url;
+}
+
 
 ////////////////////////////////////////////////////
 
