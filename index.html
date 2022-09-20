@@ -1535,7 +1535,8 @@ function readCSV(text){
       
       for (let i = 0; i < dataRead.segments.length; i++){
         let s = dataRead.segments[i];
-        kits[s.kitTo].segs[segId] = true;
+        kits[s.kitTo].segs = kits[s.kitTo].segs || {};
+        kits[s.kitTo].segs[s.id] = true;
       }
       
       refreshAll = true;
