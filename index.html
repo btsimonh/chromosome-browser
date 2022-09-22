@@ -177,6 +177,7 @@ a:link, a:visited {
   position: absolute;
   white-space: nowrap;
   padding-left:1ch;
+  border-radius: 2px;
 }
 
 .hastree::before {
@@ -220,6 +221,14 @@ a:link, a:visited {
   background-color: #fff;
   border: solid 1px #dfdfdf;
   box-shadow: 1px 1px 2px #cfcfcf;
+  border-radius: 0.5em;
+}
+
+.context-menuheader {
+  width:100%; 
+  background-color:yellow;
+  cursor: pointer;
+  margin-block-start: 0;
 }
 
 .context-menu--active {
@@ -260,7 +269,12 @@ a:link, a:visited {
     rgba(0, 0, 0, 0.2) 10px,
     rgba(0, 0, 0, 0.3) 10px,
     rgba(0, 0, 0, 0.3) 20px
-  )
+  );
+  border:2px solid black;
+  margin: 0;
+  padding: 0;
+  transform: translate(20px, 0px);
+  border-radius: 4px;
 }
 
 .fillbrowser {
@@ -438,7 +452,7 @@ a:link, a:visited {
         <div id="divchrbrowser" style="position:relative;">
         </div>
         <nav id="context-menu" class="context-menu" onclick="event.stopPropagation();">
-          <p><b id="fullname"></b></p>
+          <p id="context-menuheader" class="context-menuheader"><b id="fullname"></b></p>
           <p id="selectedsegment"></p>
           <span>KitTag:</span><input type="text" id="kittag">
           <br/>
@@ -475,19 +489,21 @@ a:link, a:visited {
           <button onclick="chrombrowser.menuClick(event, 31)"> Ancestry Match Name Search</button>
           <span id="compare"></span>
           <br/>
+          <span>Surnames:</span><input type="text" size=100 id="surnamesedit" title="You may edit the surnames accociated with this kit as a comma separated string"/><br/>
+
           <div class="notescontainer">
             <div>
               <span>Notes:</span><br/>
-              <div class="notes" id="kitnotes" contenteditable="true"></div>
+              <div class="notes" id="kitnotes" contenteditable="true" title="You may make notes against this kit here, e.g. add links to ancestry or other."></div>
             </div>
             
             <div>
               <span>Segments:</span><br/>
-              <div class="notes" id="kitsegs"></div>
+              <div class="notes" id="kitsegs" title="all segments from this kit"></div>
             </div>
             <div>
-              <span>Surnames:</span><br/>
-              <div class="notes" id="surnames"></div>
+              <span>Surnames:<br/>
+              <div class="notes" id="surnames" title="Lists surnames accociated with this kit, and the counts of displayed kits which have each surname.  The search link searches your Ancestry matches"></div>
             </div>
           </div>
           <button class="cornerx" onclick="chrombrowser.toggleMenuOff()">X</button>
@@ -563,10 +579,12 @@ let selectedSeg;
 */
 var kits = {}; // - all kits including source kits.
 
+var activeKits = {}; // kits displayed after filter
 
 // match data - e.g. tree url, tree count, name, etc.
 var matchesMeta = {};
-
+// surname list with kits and count
+var surnames = {};
 
 // indexing
 // segment id to segment lookup
@@ -788,6 +806,8 @@ function contextMenu(e) {
     e.preventDefault();
     menuSegid = taskItemInContext.id;
     
+    dragElement(document.getElementById("context-menu"));
+
     let kit = getKitFromSeg(menuSegid);
     if (!kit) {
       clickout(e);
@@ -851,19 +871,39 @@ function contextMenu(e) {
     }
     
     let surnamesel = document.getElementById('surnames');
-    if (matchesMeta[kit] && matchesMeta[kit]['All ancestral surnames']){
-      let surnames = matchesMeta[kit]['All ancestral surnames'].split(',');
-      let html = '';
-      for (let i = 0; i < surnames.length; i++){
-        html += surnames[i];
-        if (kits[menuseg.kitFrom].ancestryid){
-          html += ' <a target="_blank" href="'+getAncestrySurnameUrl(menuseg.kitFrom, surnames[i])+'">A</a>';
+    let surnameseditsel = document.getElementById('surnamesedit');
+    
+    if (matchesMeta[kit]){
+      let addsurnames = ()=>{
+        if (matchesMeta[kit] && matchesMeta[kit]['All ancestral surnames']){
+          surnameseditsel.value = matchesMeta[kit]['All ancestral surnames'];
+          let ss = matchesMeta[kit]['All ancestral surnames'].split(',');
+          let html = '';
+          for (let i = 0; i < ss.length; i++){
+            html += ss[i];
+            if (surnames[ss[i]]){
+              html += `(${surnames[ss[i]].count})`;
+            }
+            if (kits[menuseg.kitFrom].ancestryid){
+              html += ' <a target="_blank" href="'+getAncestrySurnameUrl(menuseg.kitFrom, ss[i])+'">&#x1F50E;</a>';
+            }
+            html += '<br/>';
+          }
+          surnamesel.innerHTML = html;
+        } else {
+          surnamesel.innerHTML = '';
         }
-        html += '<br/>';
       }
-      surnamesel.innerHTML = html;
+      
+      surnameseditsel.onchange = ()=>{
+        matchesMeta[kit]['All ancestral surnames'] = surnameseditsel.value.toLowerCase();
+        addsurnames();
+      };
+      addsurnames();
+      
+      surnameseditsel.display = 'inline';
     } else {
-      surnamesel.innerHTML = '';
+      surnameseditsel.display = 'none';
     }
     
     let compareel = document.getElementById('compare');
@@ -889,8 +929,11 @@ function contextMenu(e) {
       segsel.innerHTML = '';
     }
     
-    toggleMenuOn();
-    positionMenu(e);
+    let orgstate = toggleMenuOn();
+    // don't re-position if already open, so that if if was dragged, it stays
+    if (!orgstate){
+      positionMenu(e);
+    }
   } else {
     taskItemInContext = null;
     toggleMenuOff();
@@ -901,10 +944,12 @@ function contextMenu(e) {
    * Turns the custom context menu on.
    */
   function toggleMenuOn() {
+    let orgstate = menuState;
     if ( menuState !== 1 ) {
       menuState = 1;
       menu.classList.add( contextMenuActive );
     }
+    return orgstate;
   }
 
   /**
@@ -1601,8 +1646,10 @@ function setSegmentCounts(){
   txt += 'Filtered segments: '+cnt;
   txt += '<br/>';
   
-  totalsegmentsel.innerHTML = txt;
+  txt += 'Filtered surnames: '+Object.keys(surnames).length;
+  txt += '<br/>';
   
+  totalsegmentsel.innerHTML = txt;
 }
 
 
@@ -1639,6 +1686,25 @@ function recalcDataCommon(){
   setOptions();
   setSegmentCounts();
 }
+
+function recalcSurnames(){
+  surnames = {};
+  let mkits = Object.keys(activeKits);
+  for (let i = 0; i < mkits.length; i++){
+    let kit = mkits[i];
+    let m = matchesMeta[kit];
+    if (m && m['All ancestral surnames']) {
+      let ss = m['All ancestral surnames'].split(',');
+      for (let s = 0; s < ss.length; s++){
+        let surname = ss[s];
+        surnames[surname] = surnames[surname] || {kits:[], count:0};
+        surnames[surname].kits.push(kit);
+        surnames[surname].count++;
+      }
+    }
+  }
+}
+
 
 
 function loadData() {
@@ -2288,6 +2354,8 @@ function addSegments(div, chrom, chromwidth) {
       newdiv.classList.add('notree');
     }
     
+    activeKits[d.kitTo] = true;
+    
     if (isnew) {
       
       newdiv.style.outline =  '3px solid '+kits[d.kitFrom].outlineColour;
@@ -2374,11 +2442,15 @@ function setConfig(){
 
 
 function updateDivDisplay() {
+  startWait('updating');
+
   readConfig();
 	var rootDiv = document.getElementById("divchrbrowser");
   rootDiv.innerHTML = '';
 
 	let segments = data[config.fromkit] || [];
+  
+  activeKits = {};
   
   let segs = data['all'] || [];
   // hide all segments which have divs - we may filter them out and they would remain.
@@ -2445,13 +2517,9 @@ function updateDivDisplay() {
       newdiv.style.top = y + 'px';
       newdiv.style.left = 20 + 'px';
       //newdiv.style.position = 'absolute';
-      newdiv.style.border = '2px solid black';
-      newdiv.style.margin = '0';
-      newdiv.style.padding = '0';
       newdiv.addEventListener('click', contextMenu);
 //      newdiv.addEventListener('dblclick', dblClickSeg);
 //      newdiv.addEventListener('contextmenu', contextMenu);
-      newdiv.style.transform = "translate(20px, 0px)"
 
       // only display if not filtered by chromosome
       if (config.chrview && (chrom.chr != config.chrview)){
@@ -2476,7 +2544,9 @@ function updateDivDisplay() {
     }
   }
   
+  recalcSurnames();
   setHighlight();
+  endWait();
 }
 
 function updateViewType(){
@@ -2699,6 +2769,7 @@ function processJson(downloaddata){
   pruneRSIDs(startRSIDs);
   pruneRSIDs(endRSIDs);
   
+
   // needs data[]
   setOptions();
   // needs options set to set fromkit....
@@ -2774,7 +2845,7 @@ async function dropHandler(ev) {
     
     
     // we should now have all the things we need,
-    // and they shoudl survive await.
+    // and they should survive await.
 		for (var i = 0; i < files.length; i++) {
       let f = files[i].file;
       let ext = files[i].ext;
@@ -2783,6 +2854,7 @@ async function dropHandler(ev) {
         // global filename used for save
         filename = fname;
         gzHandle = files[i].handle;
+        let x = await setExistingFile();
         startWait('Loading '+filename);
         await loadJson(f, ext);
         document.getElementById('filename').innerHTML = "save <b>"+filename+"</b>";
@@ -2844,6 +2916,15 @@ function showdiv(ev, id) {
 }
 
 
+async function getExistingFileName(){
+  let fileHandleOrUndefined = await get('file');
+  if (fileHandleOrUndefined) {
+    filename = fileHandleOrUndefined.name
+    pre.textContent =
+        `Retrieved file name "${fileHandleOrUndefined.name}" from IndexedDB.`;
+  }
+}
+
 async function getExistingFile(){
   let fileHandleOrUndefined = await get('file');
   if (fileHandleOrUndefined) {
@@ -2858,6 +2939,7 @@ async function getExistingFile(){
       startWait('Loading '+filename);
       await loadJson(f, ext);
       document.getElementById('filename').innerHTML = "save <b>"+filename+"</b>";
+
       updateAll();
       endWait();
     }
@@ -2869,6 +2951,7 @@ async function setExistingFile(){
 }
 
 async function pageLoad() {
+  await getExistingFileName();
 	showdiv(null, 'data');
 }
 
@@ -2969,6 +3052,52 @@ function getAncestryCompareUrl(kit1, kit2){
 
 
 ////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////
+// Make the DIV element draggable:
+
+function dragElement(elmnt) {
+  var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+  if (document.getElementById(elmnt.id + "header")) {
+    // if present, the header is where you move the DIV from:
+    document.getElementById(elmnt.id + "header").onmousedown = dragMouseDown;
+  } else {
+    // otherwise, move the DIV from anywhere inside the DIV:
+    elmnt.onmousedown = dragMouseDown;
+  }
+
+  function dragMouseDown(e) {
+    e = e || window.event;
+    e.preventDefault();
+    // get the mouse cursor position at startup:
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    document.onmouseup = closeDragElement;
+    // call a function whenever the cursor moves:
+    document.onmousemove = elementDrag;
+  }
+
+  function elementDrag(e) {
+    e = e || window.event;
+    e.preventDefault();
+    // calculate the new cursor position:
+    pos1 = pos3 - e.clientX;
+    pos2 = pos4 - e.clientY;
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    // set the element's new position:
+    elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+    elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+  }
+
+  function closeDragElement() {
+    // stop moving when mouse button is released:
+    document.onmouseup = null;
+    document.onmousemove = null;
+  }
+}
+////////////////////////////////////////////////////
+
 
 let isDirty = true;
 window.onbeforeunload = function() {
