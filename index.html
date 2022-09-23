@@ -157,6 +157,15 @@ a:link, a:visited {
 	font-weight: bold;
 }
 
+.clickable {
+  cursor: pointer;
+
+}
+
+.surnameslist {
+  overflow: scroll;
+  height: 50vh;
+}
 
 .cornerx {
   position: absolute;
@@ -315,6 +324,7 @@ a:link, a:visited {
             <li><a href="#Data" onclick="chrombrowser.showdiv(event, 'data');">Data</a></li>
             <li><a href="#Filters" onclick="chrombrowser.showdiv(event, 'filters');">Filters</a></li>
             <li><a href="#Display" onclick="chrombrowser.showdiv(event, 'display');">Display</a></li>
+            <li><a href="#Surnames" onclick="chrombrowser.showdiv(event, 'surnameslist');">Surnames</a></li>
             <li><span onclick="chrombrowser.saveToDbjson();" id="filename">Save</span></li>
             <li><span onclick="chrombrowser.saveToDbjson(true);" id="filename">SaveAs</span></li>
             <li style="float: right"><a href="#" onclick="chrombrowser.showdiv(event, 'about');">About</a></li>
@@ -431,14 +441,23 @@ a:link, a:visited {
               </select>
 
               <br/><br/>
-              <label for="hideuncoloured">Show Segments</label>
-              <select id="hideuncoloured" onchange="chrombrowser.updateHidden();">
+              <button onclick="chrombrowser.showhidden(false);">Show only Higlights</button>
+              <button onclick="chrombrowser.showhidden(true);">Show All</button>
+
+              <label style="display:none;" for="hideuncoloured">Show Segments</label>
+              <select style="display:none;" id="hideuncoloured" onchange="chrombrowser.updateHidden();">
                 <option value="all" selected="selected">All</option>
                 <option value="coloured">Solid Colour</option>
               </select>
               <br/><br/>
               <button onclick="chrombrowser.refresh();">Refresh</button>
 
+            </div>
+            <div class="inputs" id="surnameslist">
+              <button onclick="chrombrowser.highlightAll(false);">Clear all Higlights</button>
+              <button onclick="chrombrowser.showhidden(false);">Show only Higlights</button>
+              <button onclick="chrombrowser.showhidden(true);">Show All</button>
+              <div class="surnameslist" id="surnamelist"></div>
             </div>
             <div class="inputs" id="about">
               Copyright (c) 2018 yulvil, 2022 btsimonh <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a> and <a href="https://github.com/btsimonh/chromosome-browser" target="_blank">Source Code</a>
@@ -880,12 +899,12 @@ function contextMenu(e) {
           let ss = matchesMeta[kit]['All ancestral surnames'].split(',');
           let html = '';
           for (let i = 0; i < ss.length; i++){
-            html += ss[i];
+            html += `<span class="clickable" title="click to higlight all kits with this surname" onclick="chrombrowser.highlightSurname('${ss[i]}', true);"><u>${ss[i]}</u></span>`;
             if (surnames[ss[i]]){
               html += `(${surnames[ss[i]].count})`;
             }
             if (kits[menuseg.kitFrom].ancestryid){
-              html += ' <a target="_blank" href="'+getAncestrySurnameUrl(menuseg.kitFrom, ss[i])+'">&#x1F50E;</a>';
+              html += ` <a target="_blank" title="click to search Ancestry matches of ${kits[menuseg.kitFrom].name} for this surname" href="'+getAncestrySurnameUrl(menuseg.kitFrom, ss[i])+'">&#x1F50E;</a>`;
             }
             html += '<br/>';
           }
@@ -1047,7 +1066,18 @@ function contextMenu(e) {
 
 function refresh() {
   width = getWidth() * 0.95;
+  updateHidden();
   updatePosn();
+}
+
+function showhidden(enable){
+  if (enable){
+    config.hideuncoloured = 'all';
+  } else {
+    config.hideuncoloured = 'coloured';
+  }
+  setConfig();
+  updateHidden();
 }
   
 function menuClick(ev, item){
@@ -2172,7 +2202,6 @@ function dblClickSeg(ev){
   if (!kit) return;
 
   highlightAllMatchingKit(kit, true);
-  setHighlight();
 }
 
 function getKitFromSeg(segid){
@@ -2180,7 +2209,7 @@ function getKitFromSeg(segid){
   return segids[segid].kitTo;
 }
 
-function highlightKits(){
+/*function highlightKits(){
   let keys = Object.keys(kits);
   for (let i = 0; i < keys.length; i++){
     if (kits[keys[i]].type === 'highlight'){
@@ -2192,7 +2221,7 @@ function highlightKits(){
       highlightAllMatchingKit(keys[i], false);
     }
   }
-}
+}*/
 
 function highlightAllMatchingKit(kit, enable){
 	var segments = data['all'] || [];
@@ -2219,6 +2248,7 @@ function highlightAllMatchingKit(kit, enable){
           } else {
             seg.mark = "never";
           }
+          segDivHighlight(seg.id, enable);
         }
       }
     }
@@ -2251,11 +2281,13 @@ function highlightAllMatchingSeg(segid, enable){
           } else {
             seg.mark = "never";
           }
+          segDivHighlight(seg.id, enable);
         }
       }
     }
   }
 }
+
 
 
 // pass '' or 'always' or 'never'
@@ -2269,6 +2301,7 @@ function highlightAll(enable){
     } else {
       seg.mark = "never";
     }
+    segDivHighlight(seg.id, enable);
   }
 }
 
@@ -2282,6 +2315,61 @@ function highlightKit(kitid, enable){
     let seg = segments[s];
     if (seg.kitTo === kitid){
       seg.mark = enable?'always':'never';
+      segDivHighlight(seg.id, enable);
+    }
+  }
+}
+
+
+// highlight multiple kits - kitids = [kit1, kit2, ...]
+function highlightKits(kitids, enable){
+  for (let i = 0; i < kitids.length; i++){
+    let kit = kits[kitids[i]];
+    if (kit) kit.higlight = enable;
+  }
+  
+  var segments = data['all'] || [];
+  // highlight segs from kit highlight only.
+  for (let s = 0; s < segments.length; s++){
+    let seg = segments[s];
+    if (kitids.includes(seg.kitTo)){
+      seg.mark = enable?'always':'never';
+      segDivHighlight(seg.id, enable);
+    }
+  }
+}
+
+function segDivHighlight(id, enable){
+  let segdiv = segdivs[id];
+  if (segdiv){
+    let opacity = enable? 1.0:0.5;
+    if ((+segdiv.style.opacity) != opacity){
+      segdiv.style.opacity = opacity;
+    }
+    /* hmm.. can't do this here because the row also changes.
+    if (config.hideuncoloured === 'coloured'){
+      if(enable){
+        
+      }
+    }*/
+  }
+}
+
+// highlight kits which have surname
+function highlightSurname(surname, enable){
+  var segments = data['all'] || [];
+  // highlight segs from kit highlight only.
+  for (let s = 0; s < segments.length; s++){
+    let seg = segments[s];
+    let kitid = seg.kitTo;
+    let meta = matchesMeta[kitid];
+    if (meta && meta['All ancestral surnames']){
+      let ss = meta['All ancestral surnames'].split(',');
+      if (ss.includes(surname)){
+        seg.mark = enable?'always':'never';
+        kits[kitid].higlight = enable;
+        segDivHighlight(seg.id, enable);
+      }
     }
   }
 }
@@ -2312,6 +2400,25 @@ function setHighlight(){
   
   setSegmentCounts();
   
+}
+
+
+function surnameList(){
+  let html = '';
+  let ss = Object.keys(surnames);
+  
+  ss.sort((a, b)=>{
+    if (surnames[a].count < surnames[b].count) return 1;
+    if (surnames[a].count > surnames[b].count) return -1;
+    return 0;
+  });
+  
+  for (let i = 0; i < ss.length; i++){
+    html += `<span class="clickable" title="click to higlight all kits with this surname" onclick="chrombrowser.highlightSurname('${ss[i]}', true);"><u>${ss[i]}</u></span>`;
+    html += `(${surnames[ss[i]].count})`;
+    html += '<br/>';
+  }
+  return html;
 }
 
 
@@ -2908,8 +3015,18 @@ function showdiv(ev, id) {
 		d3.select("#data").attr("style", "display: none;");
 		d3.select("#filters").attr("style", "display: none;");
 		d3.select("#display").attr("style", "display: none;");
+		d3.select("#surnameslist").attr("style", "display: none;");
 		d3.select("#about").attr("style", "display: none;");
 		if (id !== 'none') {
+      if (id === 'surnameslist'){
+        let surnamesel = document.getElementById('surnamelist');
+        let html = surnameList();
+        if (html){
+          surnamesel.innerHTML = html;
+        } else {
+          surnamesel.innerHTML = 'Add a Matches List file';
+        }
+      }
 			d3.select("#" + id).attr("style", "display: block;");
 		}
 	}
@@ -2969,29 +3086,7 @@ function clickout(event) {
   toggleMenuOff();
 }
 
-await pageLoad();
 
-let module = {
-  getExistingFile,
-  saveToDbjson,
-  showdiv,
-  dragOverHandler,
-  dropHandler,
-  menuClick,
-  updateHidden,
-  updateAll,
-  updateViewType,
-  updatePosn,
-  updateCm,
-  keydown,
-  toggleMenuOff,
-  clickout,
-  refresh,
-  
-  
-};
-
-window.chrombrowser = module;
 
 let resizeTimer;
 window.onresize = ()=>{
@@ -3106,6 +3201,32 @@ window.onbeforeunload = function() {
   }
   return undefined;
 }
+
+let module = {
+  getExistingFile,
+  saveToDbjson,
+  showdiv,
+  dragOverHandler,
+  dropHandler,
+  menuClick,
+  updateHidden,
+  updateAll,
+  updateViewType,
+  updatePosn,
+  updateCm,
+  keydown,
+  toggleMenuOff,
+  clickout,
+  refresh,
+  highlightSurname,
+  highlightAll,
+  showhidden,
+};
+
+window.chrombrowser = module;
+
+await pageLoad();
+
 
 </script>
 	</body>
