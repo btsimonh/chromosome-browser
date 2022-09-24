@@ -354,7 +354,7 @@ a:link, a:visited {
                 
 
                 <div>
-                  <div id="recentfiles"></div>
+                  <div id="recentfiles" title="Recent files, click a button to load one"></div>
                 </div>
                 <div>
                   <span>Ancestry URL:</span><input size=40 type="text" id="ancestryurl">
@@ -1695,7 +1695,7 @@ function setSegmentCounts(){
       let kit = kits[grps[i]];
       txt += `<b>${kit.name}:</b> ID:${grps[i]} segments:${data[grps[i]].length}`;
       if (kit){
-        txt += `<br/><span>Ancestry kit ID:</span><input size=40 type="text" value="${kit.ancestryid}" id="ancestry${grps[i]}" onchange="chrombrowser.setAncestryId(event.target.value, '${grps[i]}', event);">`;
+        txt += `<br/><span>Ancestry kit ID:</span><input title="set to the Ancestry test id to enable extra ancestry features" size=40 type="text" value="${kit.ancestryid}" id="ancestry${grps[i]}" onchange="chrombrowser.setAncestryId(event.target.value, '${grps[i]}', event);">`;
       }
     } else {
       txt += grps[i]+' segments: '+data[grps[i]].length;
