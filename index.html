@@ -187,6 +187,7 @@ a:link, a:visited {
   white-space: nowrap;
   padding-left:1ch;
   border-radius: 2px;
+  cursor: pointer;
 }
 
 .hastree::before {
@@ -203,6 +204,9 @@ a:link, a:visited {
   color: lime;
 }
 
+.draggable {
+  
+}
 
 .wait {
   display: none;
@@ -284,6 +288,7 @@ a:link, a:visited {
   padding: 0;
   transform: translate(20px, 0px);
   border-radius: 4px;
+  cursor: grab;
 }
 
 .fillbrowser {
@@ -467,7 +472,7 @@ a:link, a:visited {
           </nav>
         </form>
       </div>
-      <div class="fillremainder container">
+      <div id="chrbrowsercontainer"  class="fillremainder container">
         <div id="divchrbrowser" style="position:relative;">
         </div>
         <nav id="context-menu" class="context-menu" onclick="event.stopPropagation();">
@@ -2558,7 +2563,9 @@ function updateDivDisplay() {
   readConfig();
 	var rootDiv = document.getElementById("divchrbrowser");
   rootDiv.innerHTML = '';
-
+  
+  var scrollDiv = document.getElementById("chrbrowsercontainer");
+  
 	let segments = data[config.fromkit] || [];
   
   activeKits = {};
@@ -3074,6 +3081,10 @@ async function setExistingFile(){
 async function pageLoad() {
   await getExistingFileName();
 	showdiv(null, 'data');
+  
+	var rootDiv = document.getElementById("divchrbrowser");
+  var scrollDiv = document.getElementById("chrbrowsercontainer");
+  dragFeature(rootDiv, scrollDiv);
 }
 
 function keydown(ev){
@@ -3205,6 +3216,58 @@ window.onbeforeunload = function() {
   }
   return undefined;
 }
+
+
+let dragFeature = function(el, scrollel){
+
+  let handler = {
+    el: el,
+    ele: scrollel, 
+    pos: { top: 0, left: 0, x: 0, y: 0 },
+    mouseDownHandler: (e)=>{
+      console.log('mdn ');
+      handler.pos = {
+          // The current scroll
+          left: handler.ele.scrollLeft,
+          top: handler.ele.scrollTop,
+          // Get the current mouse position
+          x: e.clientX,
+          y: e.clientY,
+      };
+
+      document.addEventListener('mousemove', handler.mouseMoveHandler);
+      document.addEventListener('mouseup', handler.mouseUpHandler);
+      // Change the cursor and prevent user from selecting the text
+      handler.ele.style.cursor = 'grabbing';
+      handler.ele.style.userSelect = 'none';
+    },
+    mouseMoveHandler: (e)=>{
+      // How far the mouse has been moved
+      const dx = e.clientX - handler.pos.x;
+      const dy = e.clientY - handler.pos.y;
+      console.log('mmove '+dy);
+
+      // Scroll the element
+      handler.ele.scrollTop = handler.pos.top - dy;
+      handler.ele.scrollLeft = handler.pos.left - dx;
+    },
+    mouseUpHandler: (e)=>{
+      console.log('mup ');
+      document.removeEventListener('mousemove', handler.mouseMoveHandler);
+      document.removeEventListener('mouseup', handler.mouseUpHandler);
+
+      handler.ele.style.cursor = 'grab';
+      handler.ele.style.removeProperty('user-select');
+    },
+  };
+  
+  el.addEventListener('mousedown', handler.mouseDownHandler);
+  
+  return;
+};
+
+
+
 
 let module = {
   getExistingFile,
