@@ -354,11 +354,10 @@ a:link, a:visited {
                 
 
                 <div>
-                  <pre id="pre"></pre>
-                  <button onclick="chrombrowser.getExistingFile();">Load Last File</button>
+                  <div id="recentfiles"></div>
                 </div>
                 <div>
-                  <span>Ancestry URL:</span><input type="text" id="ancestryurl">
+                  <span>Ancestry URL:</span><input size=40 type="text" id="ancestryurl">
                 </div>
                 <div id="totalsegments">
                 </div>
@@ -416,6 +415,13 @@ a:link, a:visited {
               <select id="chrsize" onchange="chrombrowser.updatePosn();">
                 <option value="screenwidth" selected="selected">screen width</option>
                 <option value="proportional">proportional</option>
+              </select>
+              <label for="screenwidth">Screen Width</label>
+              <select id="screenwidth" onchange="chrombrowser.updatePosn();">
+                <option value="0" selected="selected">browser width</option>
+                <option value="1920">1920 pixels</option>
+                <option value="4000">4000 pixels</option>
+                <option value="10000">10000 pixels</option>
               </select>
 
               <label for="nametype">Name type</label>
@@ -641,6 +647,7 @@ let config = {
   chrview: 0,
   segmentHeight: 20,
   chrsize: 'screenwidth',
+  screenwidth: 0,
   hideuncoloured: 'all',
   fromkit: 'all',
   nametype: 'name',
@@ -651,6 +658,9 @@ let config = {
   ancestryurl: 'www.ancestry.co.uk',
 };
 
+
+
+let recentFiles = null;
 
 
 // global variables used:
@@ -727,7 +737,7 @@ async function saveToDbjson(saveAs){
     let file = await gzHandle.getFile();
     filename = file.name;
     document.getElementById('filename').innerHTML = "save <b>"+filename+"</b>";
-    let x = await setExistingFile();
+    let x = await setExistingFile(filename);
   }
 
   startWait('Saving '+filename);
@@ -1669,12 +1679,27 @@ function recalcDataAll(){
 }
 
 
+function setAncestryId(value, kitid, event){
+  let kit = kits[kitid];
+  if (kit){
+    kit.ancestryid = value;
+  }
+}
+
 function setSegmentCounts(){
   let totalsegmentsel = document.getElementById('totalsegments');
   let txt = '';
   let grps = Object.keys(data);
   for (let i =0; i < grps.length; i++){
-    txt += grps[i]+' segments: '+data[grps[i]].length;
+    if (!grps[i].startsWith('common') && !(grps[i] === 'all')){
+      let kit = kits[grps[i]];
+      txt += `<b>${kit.name}:</b> ID:${grps[i]} segments:${data[grps[i]].length}`;
+      if (kit){
+        txt += `<br/><span>Ancestry kit ID:</span><input size=40 type="text" value="${kit.ancestryid}" id="ancestry${grps[i]}" onchange="chrombrowser.setAncestryId(event.target.value, '${grps[i]}', event);">`;
+      }
+    } else {
+      txt += grps[i]+' segments: '+data[grps[i]].length;
+    }
     txt += '<br/>';
   }
   let cnt = 0;
@@ -2145,7 +2170,7 @@ function mouseover2(ev) {
   }
   tooltipDiv.style.display = 'block';
 
-  str += `<b>${name}:${fromName}</b><br/>`;
+  str += `<b>${name}:${fromName}</b> ${d.cm.toFixed(1)}cM<br/>`;
   
   if (matchesMeta[d.kitTo] && matchesMeta[d.kitTo]['Number of individuals in the tree']){
     let url = matchesMeta[d.kitTo]['View tree'];
@@ -2162,8 +2187,7 @@ function mouseover2(ev) {
   if (name) name = ' name '+name;
   if (fromName) fromName = ' name '+fromName;
   str += "kitTo " + d.kitTo + name + "<br/>"+
-    "kitFrom " + d.kitFrom + fromName + "<br/>"+
-    "This segment " + d.cm.toFixed(1) + " cM";
+    "kitFrom " + d.kitFrom + fromName + "<br/>";
 
   if (kits[d.kitTo].notes){
     str += '<br/>'+kits[d.kitTo].notes;
@@ -2504,12 +2528,16 @@ function addSegments(div, chrom, chromwidth) {
 
 
 
-function getChrBoxWidth(chr, chrsize) {
+function getChrBoxWidth(chr, chrsize, screenwidth) {
+  let localwidth = width;
+  if (screenwidth){
+    localwidth = screenwidth;
+  }
 	if (chrsize === 'proportional') {
-		return width * chrlen[chr] / chrlen[1];
+		return localwidth * chrlen[chr] / chrlen[1];
 	}
 
-	return width;
+	return localwidth;
 }
 
 function updateCm() {
@@ -2529,6 +2557,7 @@ function readConfig(){
 	config.chrview = +document.getElementById("chrview").value;
 	config.segmentHeight = +document.getElementById("segmentHeight").value;
 	config.chrsize = document.getElementById("chrsize").value;
+  config.screenwidth = +document.getElementById("screenwidth").value;
   config.hideuncoloured = document.getElementById("hideuncoloured").value;
 	config.fromkit = document.getElementById("fromkit").value;
   config.nametype =  document.getElementById("nametype").value;
@@ -2545,6 +2574,7 @@ function setConfig(){
 	document.getElementById("chrview").value = config.chrview;
 	document.getElementById("segmentHeight").value = config.segmentHeight;
   document.getElementById("chrsize").value = config.chrsize;
+  document.getElementById("screenwidth").value = config.screenwidth;
   document.getElementById("hideuncoloured").value = config.hideuncoloured;
 	document.getElementById("fromkit").value = config.fromkit;
   document.getElementById("nametype").value = config.nametype;
@@ -2627,7 +2657,7 @@ function updateDivDisplay() {
         newdiv.classList.add('chrom');
         isnew = true;
       }
-      let chromwidth = getChrBoxWidth(chrom.chr, config.chrsize);
+      let chromwidth = getChrBoxWidth(chrom.chr, config.chrsize, config.screenwidth);
 
       newdiv.id = `chrdiv${chrom.chr}_${chrom.side}`;
       newdiv.style.width = chromwidth + 'px';
@@ -2658,7 +2688,7 @@ function updateDivDisplay() {
       rootDiv.append(newdiv);
       
       // create segments 
-      addSegments(newdiv, chrom, getChrBoxWidth(chrom.chr, config.chrsize));
+      addSegments(newdiv, chrom, getChrBoxWidth(chrom.chr, config.chrsize, config.screenwidth ));
     }
   }
   
@@ -2685,7 +2715,7 @@ function updatePosn(){
   for (let i = 0; i < filteredByChr.length; i++){
     let chrom = filteredByChr[i];
     if (chrom.div){
-      let chromwidth = getChrBoxWidth(chrom.chr, config.chrsize);
+      let chromwidth = getChrBoxWidth(chrom.chr, config.chrsize, config.screenwidth);
       var sc = (len)=>{
         let newlen = (len/chrlen[chrom.chr])*chromwidth;
         return newlen;
@@ -2972,7 +3002,7 @@ async function dropHandler(ev) {
         // global filename used for save
         filename = fname;
         gzHandle = files[i].handle;
-        let x = await setExistingFile();
+        let x = await setExistingFile(fname);
         startWait('Loading '+filename);
         await loadJson(f, ext);
         document.getElementById('filename').innerHTML = "save <b>"+filename+"</b>";
@@ -3043,23 +3073,60 @@ function showdiv(ev, id) {
 	}
 }
 
-
-async function getExistingFileName(){
-  let fileHandleOrUndefined = await get('file');
-  if (fileHandleOrUndefined) {
-    filename = fileHandleOrUndefined.name
-    pre.textContent =
-        `Retrieved file name "${fileHandleOrUndefined.name}" from IndexedDB.`;
+async function getRecentFiles(){
+  let recents = await get('recentfiles');
+  if (recents){
+    recentFiles = JSON.parse(recents);
+    while (recentFiles.files.length > 10){
+      recentFiles.files.pop();
+    }
+  } else {
+    recentFiles = {files:[]};
   }
+  updateRecentsButtons();
 }
 
-async function getExistingFile(){
-  let fileHandleOrUndefined = await get('file');
+function updateRecentsButtons(){
+  let recentsdiv = document.getElementById("recentfiles");
+  recentsdiv.innerHTML = '';
+  let html = '';
+  for (let i = 0; i < recentFiles.files.length; i++){
+    html += `<button id="recent${i}" onclick="chrombrowser.getExistingFile('${recentFiles.files[i]}');">Load ${recentFiles.files[i]}</button><br/>`;
+  }
+  recentsdiv.innerHTML = html;
+}
+
+async function addRecentFile(file){
+  recentFiles = recentFiles || {files:[]};
+  
+  for (let i = recentFiles.files.length-1; i >= 0; i--){
+    if (recentFiles.files[i] === file){
+      recentFiles.files.splice(i, 1);
+    }
+  }
+  
+  recentFiles.files.unshift(file);
+  while (recentFiles.files.length > 10){
+    recentFiles.files.pop();
+  }
+  let recents = JSON.stringify(recentFiles);
+  await set('recentfiles', recents);
+  updateRecentsButtons();
+}
+
+async function getExistingFileName(){
+  await getRecentFiles();
+}
+
+async function getExistingFile(file){
+  file = file || recentFiles.files[0];
+  if (!file) return;
+  await addRecentFile(file);
+  updateRecentsButtons();
+  let fileHandleOrUndefined = await get(file);
   if (fileHandleOrUndefined) {
     let status = await fileHandleOrUndefined.requestPermission({ mode : "readwrite" });
     if (status){
-      pre.textContent =
-          `Retrieved file handle "${fileHandleOrUndefined.name}" from IndexedDB.`;
       gzHandle = fileHandleOrUndefined;
       let f = await gzHandle.getFile();
       filename = f.name;
@@ -3074,8 +3141,9 @@ async function getExistingFile(){
   }
 }
 
-async function setExistingFile(){
-    await set('file', gzHandle);    
+async function setExistingFile(file){
+  await addRecentFile(file)
+  await set(file, gzHandle);    
 }
 
 async function pageLoad() {
@@ -3288,6 +3356,7 @@ let module = {
   highlightSurname,
   highlightAll,
   showhidden,
+  setAncestryId,
 };
 
 window.chrombrowser = module;
