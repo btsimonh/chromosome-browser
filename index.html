@@ -330,8 +330,9 @@ a:link, a:visited {
             <li><a href="#Filters" onclick="chrombrowser.showdiv(event, 'filters');">Filters</a></li>
             <li><a href="#Display" onclick="chrombrowser.showdiv(event, 'display');">Display</a></li>
             <li><a href="#Surnames" onclick="chrombrowser.showdiv(event, 'surnameslist');">Surnames</a></li>
-            <li><span onclick="chrombrowser.saveToDbjson();" id="filename">Save</span></li>
-            <li><span onclick="chrombrowser.saveToDbjson(true);" id="filename">SaveAs</span></li>
+            <li><span onclick="chrombrowser.wrapFn(async ()=>{await chrombrowser.saveToDbjson();});" id="filename">Save</span></li>
+            <li><span onclick="chrombrowser.wrapFn(async ()=>{await chrombrowser.saveToDbjson(true);});" id="filename">SaveAs</span></li>
+            <li><a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a></li>
             <li style="float: right"><a href="#" onclick="chrombrowser.showdiv(event, 'about');">About</a></li>
           </ul>
         </nav>
@@ -367,23 +368,25 @@ a:link, a:visited {
             <div class="inputs" id="filters">
               <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
               <label for="minCm">Centimorgan size</label>
-              from <input id="minCm" type="number" value="10" onChange="chrombrowser.updateCm();" onInput="chrombrowser.updateCm();">
+              from <input id="minCm" type="number" value="10" 
+                onChange="chrombrowser.wrapFn(async ()=>{await chrombrowser.updateCm();});">
+                <!--onInput="chrombrowser.wrapFn(async ()=>{await chrombrowser.updateCm();});">-->
               to <input id="maxCm" type="number" value="" onChange="chrombrowser.updateCm();" onInput="chrombrowser.updateCm();">
 
               <br/><br/>
               <label for="includekits">Only show these kits (one per line)</label>
               <br/>
-              <textarea name="includekits" id="includekits" onChange="chrombrowser.updateAll();"></textarea>
+              <textarea name="includekits" id="includekits" onChange="chrombrowser.wrapFn(async ()=>{await chrombrowser.updateAll();});"></textarea>
 
               <br/><br/>
               <label for="excludekits">Exclude these kits (one per line)</label>
               <br/>
-              <textarea name="excludekits" id="excludekits" onChange="chrombrowser.updateAll();"></textarea>
+              <textarea name="excludekits" id="excludekits" onChange="chrombrowser.wrapFn(async ()=>{await chrombrowser.updateAll();});"></textarea>
             </div>
             <div class="inputs" id="display">
               <a href="https://github.com/btsimonh/chromosome-browser/wiki" target="_blank">Help</a><br/>
               <label for="chrview">Chromosome</label>
-              <select id="chrview" onChange="chrombrowser.updateAll()">
+              <select id="chrview" onChange="chrombrowser.wrapFn(async ()=>{await chrombrowser.updateAll();});">
                 <option value="0">All</option>
                 <option value="1">1</option>
                 <option value="2">2</option>
@@ -412,12 +415,12 @@ a:link, a:visited {
 
               <br/><br/>
               <label for="chrsize">Chromosome Size</label>
-              <select id="chrsize" onchange="chrombrowser.updatePosn();">
+              <select id="chrsize" onchange="chrombrowser.wrapFn(async ()=>{await chrombrowser.updatePosn();});">
                 <option value="screenwidth" selected="selected">screen width</option>
                 <option value="proportional">proportional</option>
               </select>
               <label for="screenwidth">Screen Width</label>
-              <select id="screenwidth" onchange="chrombrowser.updatePosn();">
+              <select id="screenwidth" onchange="chrombrowser.wrapFn(async ()=>{await chrombrowser.updatePosn();});">
                 <option value="0" selected="selected">browser width</option>
                 <option value="1920">1920 pixels</option>
                 <option value="4000">4000 pixels</option>
@@ -425,7 +428,7 @@ a:link, a:visited {
               </select>
 
               <label for="nametype">Name type</label>
-              <select id="nametype" onchange="chrombrowser.updatePosn();">
+              <select id="nametype" onchange="chrombrowser.wrapFn(async ()=>{await chrombrowser.updatePosn();});">
                 <option value="name" selected="selected">name</option>
                 <option value="kit">kit id</option>
                 <option value="index">index</option>
@@ -433,7 +436,7 @@ a:link, a:visited {
 
               <br/><br/>
               <label for="viewtype">View Type</label>
-              <select id="viewtype" onchange="chrombrowser.updateViewType();">
+              <select id="viewtype" onchange="chrombrowser.wrapFn(async ()=>{await chrombrowser.updateViewType();});">
                 <option value="compact" selected="selected">Compact</option>
                 <option value="compactreverse">Compact (reverse)</option>
                 <option value="segment">By Segment</option>
@@ -444,11 +447,11 @@ a:link, a:visited {
               </select>
               <br/><br/>
               <label for="segmentHeight">Segment Height</label>
-              <input id="segmentHeight" type="number" value="20" onChange="chrombrowser.updatePosn();">
+              <input id="segmentHeight" type="number" value="20" onChange="chrombrowser.wrapFn(async ()=>{await chrombrowser.updatePosn();});">
 
               <br/><br/>
               <label for="fromkit">Active Kit</label>
-              <select id="fromkit" onchange="chrombrowser.updateAll();">
+              <select id="fromkit" onchange="chrombrowser.wrapFn(async ()=>{await chrombrowser.updateAll();});">
               </select>
 
               <br/><br/>
@@ -456,7 +459,7 @@ a:link, a:visited {
               <button onclick="chrombrowser.showhidden(true);">Show All</button>
 
               <label style="display:none;" for="hideuncoloured">Show Segments</label>
-              <select style="display:none;" id="hideuncoloured" onchange="chrombrowser.updateHidden();">
+              <select style="display:none;" id="hideuncoloured" onchange="chrombrowser.wrapFn(async ()=>{await chrombrowser.updateHidden();});">
                 <option value="all" selected="selected">All</option>
                 <option value="coloured">Solid Colour</option>
               </select>
@@ -687,18 +690,76 @@ var menuPositionX;
 var menuPositionY;
 var menuSegid;
 
+var waitStartTime;
+var times = [];
+
+
+async function wrapFn(fn){
+  await promiseStartWait('updating');
+  await fn();
+  await promiseEndWait();
+}
+
+function promiseStartWait(text) {
+  return new Promise(resolve => {
+    startWait(text);
+    let inter = setInterval(()=>{
+      let waitdlg = document.getElementById('wait');
+      if (waitdlg.scrollWidth){
+        clearInterval(inter);
+        resolve('resolved');
+      }
+    }, 40);
+  });
+}
+
+function promiseEndWait() {
+  let waitdlg = document.getElementById('wait');
+  let time = Date.now();
+  let diff = time - waitStartTime;
+  let text = 'endWait '+(diff/1000).toFixed(3);
+  waitdlg.innerHTML += text;
+  times.push(text);
+  console.log(text);
+  console.log(times);
+
+  return new Promise(resolve => {
+    setTimeout(() => {
+      waitdlg.style.display = 'none';
+      waitdlg.innerHTML = '';
+      resolve('resolved');
+    }, 1000);
+  });
+}
 
 function startWait(text){
   console.log('startwait '+text);
   let waitdlg = document.getElementById('wait');
+  if (waitdlg.style.display !== 'block'){
+    waitdlg.style.display = 'block';
+    waitStartTime = Date.now();
+    times = [];
+    console.log(text+' 0');
+  } else {
+    let time = Date.now();
+    let diff = time - waitStartTime;
+    text += ' '+(diff/1000).toFixed(3);
+    times.push(text);
+    console.log(text);
+  }
   waitdlg.innerHTML = waitdlg.innerHTML + text + '<br/>';
-  waitdlg.style.display = 'block';
 }
 
 function endWait(){
   let waitdlg = document.getElementById('wait');
   waitdlg.style.display = 'none';
   waitdlg.innerHTML = '';
+  let time = Date.now();
+  let diff = time - waitStartTime;
+  let text = 'endWait '+(diff/1000).toFixed(3);
+  times.push(text);
+  console.log(text);
+  console.log(times);
 }
 
 async function downloadjson(){
@@ -740,7 +801,7 @@ async function saveToDbjson(saveAs){
     let x = await setExistingFile(filename);
   }
 
-  startWait('Saving '+filename);
+  await promiseStartWait('Saving '+filename);
 
   let status = await gzHandle.requestPermission({ mode : "readwrite" });
   
@@ -765,7 +826,6 @@ async function saveToDbjson(saveAs){
 
   // close the file and write the contents to disk.
   await writableStream.close();
-  endWait();
 }
 
 
@@ -1280,6 +1340,47 @@ function compact(data, fcmp) {
 	};
 }
 
+function compact2(data, fcmp) {
+	var numRows = 0;
+	var d = data.sort(fcmp);
+
+  let rows = [];
+  
+	function overlap(s1, s2) {
+    if ((s1.start <= s2.start && s2.start <= s1.end) ||
+      (s1.start <= s2.end && s2.end <= s1.end)) {
+      return true;
+    }
+		return false;
+	}
+
+	for (var i = 0; i < d.length; i++) {
+		var j = 0;
+    let r = 0;
+    // we can only ever create one new row.
+    for (r = 0; r < numRows+1; r++){
+      let seg = d[i];
+      seg.row = r;
+      if (rows[r]){
+        let rseg = rows[r][rows[r].length-1];
+        if (!overlap(rseg, seg)){
+          break;
+        }
+      } else {
+        break; // nothing on this row yet, so be the first
+      }
+    }
+    rows[r] = rows[r] || [];
+    rows[r].push(d[i]);
+    if (numRows < r+1)
+      numRows = r+1;
+  }
+    
+	return {
+		"data": d,
+		"numRows": numRows
+	};
+}
 
 // data = {
 //   "kit1": [segments],
@@ -2101,10 +2202,10 @@ function sortData(data, viewType) {
 	for (var i = 0; i < data.length; i++) {
 		switch (viewType) {
 		case "compact":
-			o = compact(data[i].segments, compareSegment);
+			o = compact2(data[i].segments, compareSegment);
 			break;
 		case "compactreverse":
-			o = compact(data[i].segments, compareSegmentReverse);
+			o = compact2(data[i].segments, compareSegmentReverse);
 			break;
 		case "kitsize":
 			o = sortByKitSize(data[i].segments);
@@ -2540,15 +2641,16 @@ function getChrBoxWidth(chr, chrsize, screenwidth) {
 	return localwidth;
 }
 
-function updateCm() {
-  readConfig();
-	updateAll();
+async function updateCm() {
+	await updateAll();
 }
 
-function updateAll() {
+async function updateAll() {
+  await promiseStartWait('UpdateAll');
+
   readConfig();
 	updateData();
-  updateDivDisplay();
+  await updateDivDisplay();
 }
 
 
@@ -2587,8 +2689,8 @@ function setConfig(){
 }
 
 
-function updateDivDisplay() {
-  startWait('updating');
+async function updateDivDisplay() {
+  await promiseStartWait('updating');
 
   readConfig();
 	var rootDiv = document.getElementById("divchrbrowser");
@@ -2600,6 +2702,7 @@ function updateDivDisplay() {
   
   activeKits = {};
   
+  await promiseStartWait('hide segments');
   let segs = data['all'] || [];
   // hide all segments which have divs - we may filter them out and they would remain.
   for (let i = 0; i < segs.length; i++){
@@ -2608,6 +2711,7 @@ function updateDivDisplay() {
     }
   }
 
+  await promiseStartWait('hide chromosomes');
   // hide existing chromosome boxes
   if (filteredByChr){
     for (let i = 0; i < filteredByChr.length; i++){
@@ -2619,12 +2723,14 @@ function updateDivDisplay() {
     }
   }
   
+  await promiseStartWait('filter data');
 	filteredByChr = filteredData;
 	if (config.chrview != 0 ) {
 		filteredByChr = filteredData.filter(e => e.chr == config.chrview);
 	}
   
   if (config.hideuncoloured === 'coloured'){
+    await promiseStartWait('hide not highlighted');
     for (let i = 0; i < filteredByChr.length; i++){
       let chrom = filteredByChr[i];
       let newsegs = [];
@@ -2642,7 +2748,11 @@ function updateDivDisplay() {
     }
   }
   
+  await promiseStartWait('sort data');
+  let now = Date.now();
 	filteredByChr = sortData(filteredByChr, config.viewtype);
+  let then = Date.now();
+  console.log('sort took '+((then-now)/1000));
 
 	// Create chromosomes
   let y = 0;
@@ -2692,20 +2802,27 @@ function updateDivDisplay() {
     }
   }
   
+  await promiseStartWait('recalc surnames');
   recalcSurnames();
+  await promiseStartWait('set highlights');
   setHighlight();
-  endWait();
 }
 
-function updateViewType(){
+async function updateViewType(){
   readConfig();
+  await promiseStartWait('updating view type');
+  let now = Date.now();
 	filteredByChr = sortData(filteredByChr, config.viewtype);
+  let then = Date.now();
+  console.log('sort took '+((then-now)/1000));
+  await promiseStartWait('updating Positions');
   updatePosn();
 }
 
-function updateHidden(){
+async function updateHidden(){
+  await promiseStartWait('updating hidden');
   updateData();
-  updateDivDisplay();
+  await updateDivDisplay();
 }
 
 function updatePosn(){
@@ -2988,6 +3105,8 @@ async function dropHandler(ev) {
     // Pass event to removeDragData for cleanup
     removeDragData(ev)
 
+    await promiseStartWait('Dropping file');
+
     // await any async we created to get gz handle
     await Promise.all(tasks);
     
@@ -3026,8 +3145,8 @@ async function dropHandler(ev) {
 
   setFilenames(filenames);
   
-  updateAll();
-  endWait();
+  await updateAll();
+  await promiseEndWait();
 }
 
 
@@ -3091,7 +3210,7 @@ function updateRecentsButtons(){
   recentsdiv.innerHTML = '';
   let html = '';
   for (let i = 0; i < recentFiles.files.length; i++){
-    html += `<button id="recent${i}" onclick="chrombrowser.getExistingFile('${recentFiles.files[i]}');">Load ${recentFiles.files[i]}</button><br/>`;
+    html += `<button id="recent${i}" onclick="chrombrowser.wrapFn(async ()=>{await chrombrowser.getExistingFile('${recentFiles.files[i]}');});">Load ${recentFiles.files[i]}</button><br/>`;
   }
   recentsdiv.innerHTML = html;
 }
@@ -3135,8 +3254,7 @@ async function getExistingFile(file){
       await loadJson(f, ext);
       document.getElementById('filename').innerHTML = "save <b>"+filename+"</b>";
 
-      updateAll();
-      endWait();
+      await updateAll();
     }
   }
 }
@@ -3160,6 +3278,9 @@ function keydown(ev){
     case 'Escape':
       showdiv(null, 'none');
       toggleMenuOff();
+      break;
+    case 'Enter':
+      ev.preventDefault();
       break;
   }
 }
@@ -3357,6 +3478,7 @@ let module = {
   highlightAll,
   showhidden,
   setAncestryId,
+  wrapFn,
 };
 
 window.chrombrowser = module;
