@@ -464,7 +464,7 @@ a:link, a:visited {
                 <option value="coloured">Solid Colour</option>
               </select>
               <br/><br/>
-              <button onclick="chrombrowser.refresh();">Refresh</button>
+              <button onclick="chrombrowser.wrapFn(async ()=>{await chrombrowser.refresh();});">Refresh</button>
 
             </div>
             <div class="inputs" id="surnameslist">
@@ -849,6 +849,7 @@ if (!document.URL.startsWith('file:')){
 
 }
 
+
 var compareSegment = function (a, b) {
 	if (a.start < b.start) {
 		return -1;
@@ -1143,10 +1144,10 @@ function contextMenu(e) {
     menu.style.height = '90vh';
   }
 
-function refresh() {
+async function refresh() {
   width = getWidth() * 0.95;
-  updateHidden();
-  updatePosn();
+  await updateHidden();
+  await updatePosn();
 }
 
 function showhidden(enable){
@@ -1858,13 +1859,16 @@ function recalcSurnames(){
   for (let i = 0; i < mkits.length; i++){
     let kit = mkits[i];
     let m = matchesMeta[kit];
-    if (m && m['All ancestral surnames']) {
-      let ss = m['All ancestral surnames'].split(',');
-      for (let s = 0; s < ss.length; s++){
-        let surname = ss[s];
-        surnames[surname] = surnames[surname] || {kits:[], count:0};
-        surnames[surname].kits.push(kit);
-        surnames[surname].count++;
+    if (m){
+      let sn = m['All ancestral surnames'];
+      if (sn) {
+        let ss = sn.split(',');
+        for (let s = 0; s < ss.length; s++){
+          let surname = ss[s];
+          let sp = surnames[surname] = surnames[surname] || {kits:[], count:0};
+          sp.kits.push(kit);
+          sp.count++;
+        }
       }
     }
   }
@@ -2520,13 +2524,20 @@ function setHighlight(){
     if (seg.mark === 'never') highlight = false;
     let opacity = highlight? 1.0:0.5;
     if (segdiv){
-      if ((+segdiv.style.opacity) != opacity){
+      if (segdiv._opacity != opacity){
         segdiv.style.opacity = opacity;
+        segdiv._opacity = opacity;
       }
       if (seg.marked || kits[seg.kitTo].marked){
-        segdiv.classList.add('marked');
+        if (!segdiv._marked){
+          segdiv.classList.add('marked');
+          segdiv._marked = true;
+        }
       } else {
-        segdiv.classList.remove('marked');
+        if (segdiv._marked){
+          segdiv.classList.remove('marked');
+          segdiv._marked = false;
+        }
       }
     }
     //kits[seg.kitTo].opacity = opacity;
@@ -2559,11 +2570,8 @@ function surnameList(){
 function addSegments(div, chrom, chromwidth) {
 
   readConfig();
-
-	var sc = (len)=>{
-    let newlen = (len/chrlen[chrom.chr])*chromwidth;
-    return newlen;
-  };
+  
+  let thisLenMult = (1/chrlen[chrom.chr])*chromwidth;
 
   for (let s = 0; s < chrom.segments.length; s++){
     let d = chrom.segments[s];
@@ -2575,22 +2583,39 @@ function addSegments(div, chrom, chromwidth) {
       segdivs[d.id] = newdiv;
       isnew = true;
     }
-    newdiv.style.width = (sc(d.end) - sc(d.start)) + 'px';
-    newdiv.style.height = config.segmentHeight + 'px'
-    newdiv.style.top = (1 + d.row * (config.segmentHeight + 1)) + 'px';
-    newdiv.style.left = sc(d.start) + 'px';
 
     let highlight = true; //kits[d.kitTo].highlight; // default to kit highlight
     if (d.mark === 'always') highlight = true;
     if (d.mark === 'never') highlight = false;
-    let opacity = highlight? 1.0:0.5;
     
-    newdiv.style.opacity = opacity;
-    newdiv.style.display = 'block';
+    let newvals = {
+      width: (thisLenMult*d.end - thisLenMult*d.start) + 'px',
+      height: config.segmentHeight + 'px',
+      top: (1 + d.row * (config.segmentHeight + 1)) + 'px',
+      left: thisLenMult*d.start + 'px',
+      opacity: highlight? 1.0:0.5,
+      display: 'block',
+    };
+
+    let keys = Object.keys(newvals);
+    newdiv._chrombrowser = newdiv._chrombrowser || {};
+    for (let i = 0; i < keys.length; i++){
+      if (newdiv._chrombrowser[keys[i]] !== newvals[keys[i]]){
+        newdiv.style[keys[i]] = newvals[keys[i]];
+        newdiv._chrombrowser[keys[i]] !== newvals[keys[i]];
+      }
+    }
     
-    if (matchesMeta[d.kitTo] && matchesMeta[d.kitTo]['Number of individuals in the tree']){
-      newdiv.classList.add('hastree');
-      newdiv.dataset['treecount'] = `(${matchesMeta[d.kitTo]['Number of individuals in the tree']})`;
+    if (matchesMeta[d.kitTo]){
+      let count = matchesMeta[d.kitTo]['Number of individuals in the tree'];
+      if (count){
+        newdiv.classList.add('hastree');
+        let treecount = `(${matchesMeta[d.kitTo]['Number of individuals in the tree']})`;
+        if (newdiv._treecount !== treecount){
+          newdiv.dataset['treecount'] = treecount;
+          newdiv._treecount = treecount;
+        }
+      } 
     } else {
       newdiv.classList.add('notree');
     }
@@ -2598,7 +2623,7 @@ function addSegments(div, chrom, chromwidth) {
     activeKits[d.kitTo] = true;
     
     if (isnew) {
-      
+     
       newdiv.style.outline =  '3px solid '+kits[d.kitFrom].outlineColour;
       if (!kits[d.kitTo].color) kits[d.kitTo].color = cat20(d.kitTo);
       newdiv.style.backgroundColor = kits[d.kitTo].color;
@@ -2833,10 +2858,7 @@ function updatePosn(){
     let chrom = filteredByChr[i];
     if (chrom.div){
       let chromwidth = getChrBoxWidth(chrom.chr, config.chrsize, config.screenwidth);
-      var sc = (len)=>{
-        let newlen = (len/chrlen[chrom.chr])*chromwidth;
-        return newlen;
-      };
+      let thisLenMult = (1/chrlen[chrom.chr])*chromwidth;
       let height = 1 + chrom.numRows * (config.segmentHeight + 1) + 'px'
       let top = y + 'px';
       y += 1 + chrom.numRows * (config.segmentHeight + 1);
@@ -2848,10 +2870,10 @@ function updatePosn(){
         let d = chrom.segments[s];
         if (segdivs[d.id]){
           let div = segdivs[d.id];
-          let width = (sc(d.end) - sc(d.start)) + 'px';
+          let width = (thisLenMult*d.end - thisLenMult*d.start) + 'px';
           let height = config.segmentHeight + 'px'
           let top = (1 + d.row * (config.segmentHeight + 1)) + 'px';
-          let left = sc(d.start) + 'px';
+          let left = thisLenMult*d.start + 'px';
           if (div.style.top !== top) div.style.top = top;
           if (div.style.height !== height) div.style.height = height;
           if (div.style.width !== width) div.style.width = width;
@@ -2868,8 +2890,9 @@ function updatePosn(){
               name = kits[d.kitTo].index;
               break;
           }
-          if (div.innerHTML !== prefix+name){
+          if (div._name !== prefix+name){
             div.innerHTML = prefix+name;
+            div._name = prefix+name;
           }
         }
       }
