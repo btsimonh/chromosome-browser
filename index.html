@@ -1150,14 +1150,14 @@ async function refresh() {
   await updatePosn();
 }
 
-function showhidden(enable){
+async function showhidden(enable){
   if (enable){
     config.hideuncoloured = 'all';
   } else {
     config.hideuncoloured = 'coloured';
   }
   setConfig();
-  updateHidden();
+  await updateHidden();
 }
   
 function menuClick(ev, item){
@@ -1532,7 +1532,7 @@ function addSegmentData(dest, d){
   // ,,,,,,,,,,
   // D-9901AC20-79C0-438F-98CA-AB11FEFE1876-D-FF58D9C4-FCEC-44F0-9654-EE143A17F70C,Simon Hailes,Beverley Porter,1,9500795,20451281,rs9662295,rs7531682,22.8,6656,red
   let e = {};
-  let currKit = Math.random().toString(36);
+  let currKit = dest.currKit;
 
   
   if (d['DNA Match ID']){
@@ -1554,8 +1554,8 @@ function addSegmentData(dest, d){
 
   e.chr = (d.chr || d.Chr || d["CHROMOSOME"] || d["Chromosome"] || d["Chromosome Number"] || "0");
   e.chr = e.chr.trim() === "X" || e.chr.trim() === "x" ? 23 : + ("" + e.chr.trim()).replace(/chr/, "");
-  if (e.chr < 1 || e.chr > 23) return;
   e.chr = +e.chr;
+  if (e.chr < 1 || e.chr > 23) return;
 
   e.start =  + (d.start || d.Start || d["START LOCATION"] || d["Start Location"] || d["Chromosome Start Point"] || "0").replace(/,/g, "");
   e.end =  + (d.end || d.End || d["END LOCATION"] || d["End Location"] || d["Chromosome End Point"] || "0").replace(/,/g, "");
@@ -1583,7 +1583,7 @@ function addSegmentData(dest, d){
     }
   }
   if (!dest.kits[e.kitTo]) {
-    var nameTo = d.name2 || d.Match || d["MATCHNAME"] || d["Match name"] || d["Display Name"] || "";
+    var nameTo = d.name2 || d.Match || d["MATCHNAME"] || d["Match name"] || d["Match Name"] || d["Display Name"] || "";
     var emailTo = (d.email2 || "");
     var color = d.color || d.Color || d.Colour || cat20(e.kitTo);
     var opacity = 0.25;
@@ -1642,6 +1642,7 @@ function csvParseAny(text) {
           dataRead.segments = [];
           dataRead.kits = {};
           dataRead.type = 'segments';
+          dataRead.currKit = currKit;
         } else {
           if (d.Age !== undefined || d['Estimated relationship'] !== undefined){
             dataRead.type = 'matchlist';
@@ -2848,6 +2849,7 @@ async function updateHidden(){
   await promiseStartWait('updating hidden');
   updateData();
   await updateDivDisplay();
+  await promiseEndWait();
 }
 
 function updatePosn(){
